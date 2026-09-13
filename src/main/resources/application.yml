@@ -1,0 +1,39 @@
+server:
+  port: 8081
+
+spring:
+  ai:
+    mcp:
+      server:
+        name: bflow-mcp
+        version: 0.0.1
+        type: SYNC
+        protocol: STREAMABLE
+        instructions: >
+          Tools that act on a BFlow user's own wallets, transactions,
+          budgets and recurring items, on their behalf. Every call is
+          scoped to the authenticated user's own data.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Same Cognito user pool as BFlow's API — this service mints
+          # nothing, it only validates (ADR-0010 §2-3).
+          issuer-uri: ${COGNITO_ISSUER_URI}
+
+bflow:
+  api:
+    # BFlow's public API — bflow-mcp only ever talks to it over HTTPS,
+    # never to the database or a Java bean inside it (ADR-0009/0010).
+    base-url: ${BFLOW_API_BASE_URL:https://api.bflow-studio.com}
+  mcp:
+    # This instance's own public URL. Advertised as the "authorization
+    # server" in Protected Resource Metadata so MCP clients discover
+    # OUR /oauth/authorize + /oauth/token proxy instead of Cognito's
+    # real ones (which reject the RFC 8707 `resource` param every
+    # spec-compliant MCP client sends). See OAuthProxyController.
+    public-base-url: ${BFLOW_MCP_PUBLIC_BASE_URL:http://localhost:8081}
+  cognito:
+    # The Hosted UI domain, NOT the issuer URL — this is where the real
+    # /oauth2/authorize and /oauth2/token endpoints actually live.
+    hosted-ui-domain: ${COGNITO_HOSTED_UI_DOMAIN}

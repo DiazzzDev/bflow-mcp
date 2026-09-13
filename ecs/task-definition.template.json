@@ -1,0 +1,37 @@
+{
+  "family": "${ECS_MCP_TASK_FAMILY}",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+
+  "executionRoleArn": "${ECS_EXECUTION_ROLE_ARN}",
+  "taskRoleArn": "${ECS_MCP_TASK_ROLE_ARN}",
+
+  "containerDefinitions": [
+    {
+      "name": "bflow-mcp",
+      "image": "placeholder",
+      "essential": true,
+
+      "portMappings": [
+        { "containerPort": 8081, "protocol": "tcp" }
+      ],
+
+      "environment": [
+        { "name": "SPRING_PROFILES_ACTIVE", "value": "prod" },
+        { "name": "COGNITO_ISSUER_URI", "value": "${COGNITO_ISSUER_URI}" },
+        { "name": "BFLOW_API_BASE_URL", "value": "https://api.bflow-studio.com" }
+      ],
+
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "${CLOUDWATCH_MCP_LOG_GROUP}",
+          "awslogs-region": "${AWS_REGION}",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

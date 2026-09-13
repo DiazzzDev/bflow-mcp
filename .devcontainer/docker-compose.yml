@@ -1,0 +1,21 @@
+services:
+  app:
+    container_name: bflow-mcp-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    env_file:
+      - ../.env
+
+    volumes:
+      - ../..:/workspaces:cached
+
+    command: sleep infinity
+
+    networks:
+      - bflow-mcp-network
+
+networks:
+  bflow-mcp-network:
+    driver: bridge

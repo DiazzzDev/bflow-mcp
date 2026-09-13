@@ -1,0 +1,15 @@
+services:
+  app:
+    container_name: bflow-mcp
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      # Same Cognito user pool BFlow's API validates against — bflow-mcp
+      # mints nothing, it only validates (ADR-0010 §2-3).
+      COGNITO_ISSUER_URI: ${COGNITO_ISSUER_URI:-https://cognito-idp.us-east-1.amazonaws.com/dummy-user-pool-id}
+      # Point this at your local BFlow API (e.g. http://host.docker.internal:8080)
+      # or the deployed dev API while testing tools end-to-end.
+      BFLOW_API_BASE_URL: ${BFLOW_API_BASE_URL:-http://host.docker.internal:8080}

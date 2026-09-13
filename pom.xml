@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<!-- Same as BFlow-Financial-Engine's pom.xml. Keep these in sync
+		     manually until/unless the two repos share a BOM. -->
+		<version>4.1.1</version>
+		<relativePath/>
+	</parent>
+
+	<groupId>Diaz.Dev</groupId>
+	<artifactId>bflow-mcp</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>jar</packaging>
+	<name>bflow-mcp</name>
+	<description>
+		Remote MCP server exposing BFlow to AI agents. Talks to the BFlow
+		API over HTTPS as an ordinary OAuth2 client — no dependency on
+		bflow's domain module, repositories, or database (ADR-0010 §1-2).
+	</description>
+
+	<properties>
+		<java.version>21</java.version>
+		<spring-ai.version>1.1.2</spring-ai.version>
+		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.ai</groupId>
+				<artifactId>spring-ai-bom</artifactId>
+				<version>${spring-ai.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<!-- MCP server over Streamable HTTP. This is the only MCP-specific
+		     dependency needed — tools are just @Component beans with
+		     @Tool-annotated methods, auto-registered. -->
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+		</dependency>
+
+		<!-- Same resource-server pattern as BFlow's API: validates the
+		     same Cognito-issued JWT, mints nothing of its own. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<!-- Backs @RequiresScope / RequiresScopeAspect (ADR-0009 §4).
+		     NOT spring-boot-starter-aop: that starter artifact isn't
+		     published for Boot 4.1.1 (confirmed against Central — 404,
+		     not a version-resolution issue). Depending directly on the
+		     two libraries it normally aggregates avoids relying on that
+		     starter's existence; both are managed by the parent BOM,
+		     same as every other Spring Framework artifact here. Boot's
+		     AopAutoConfiguration enables proxying automatically once
+		     aspectjweaver is on the classpath — no starter needed for
+		     that part either. -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-aop</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.aspectj</groupId>
+			<artifactId>aspectjweaver</artifactId>
+		</dependency>
+
+		<!-- HTTP client used by BflowApiClient to call the real API.
+		     RestClient ships with spring-boot-starter-web, already a
+		     transitive dependency of the MCP starter. -->
+
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<!-- Checkstyle is intentionally executed only in CI, same as
+			     BFlow-Financial-Engine. Rules are copied verbatim from
+			     config/checkstyle/checkstyle.xml — keep them in sync by
+			     hand until/unless the two repos share a config artifact. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>${maven-checkstyle-plugin.version}</version>
+				<configuration>
+					<configLocation>
+						${project.basedir}/config/checkstyle/checkstyle.xml
+					</configLocation>
+					<consoleOutput>true</consoleOutput>
+					<failOnViolation>true</failOnViolation>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
