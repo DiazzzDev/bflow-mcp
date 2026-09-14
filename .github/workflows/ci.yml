@@ -1,0 +1,27 @@
+name: bflow-mcp CI
+
+on:
+  pull_request:
+    branches:
+      - "main"
+      - "develop"
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run code quality
+        run: ./mvnw -B checkstyle:check
+
+      - name: Run tests
+        run: ./mvnw -B clean verify

@@ -29,6 +29,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @Configuration
 public class RequiresScopeAspect {
 
+    /** Advisor precedence: must run after (be wrapped by)
+     *  {@link bflow.mcp.errors.ToolErrorHandlingAspect}'s advisor, so a
+     *  denied scope is also caught and translated there. */
+    private static final int ADVISOR_ORDER = 1;
+
     /**
      * Wires the interceptor to every method annotated with
      * {@link RequiresScope}.
@@ -39,7 +44,10 @@ public class RequiresScopeAspect {
     public DefaultPointcutAdvisor requiresScopeAdvisor() {
         AnnotationMatchingPointcut pointcut =
                 new AnnotationMatchingPointcut(null, RequiresScope.class);
-        return new DefaultPointcutAdvisor(pointcut, scopeCheckInterceptor());
+        DefaultPointcutAdvisor advisor =
+                new DefaultPointcutAdvisor(pointcut, scopeCheckInterceptor());
+        advisor.setOrder(ADVISOR_ORDER);
+        return advisor;
     }
 
     private MethodInterceptor scopeCheckInterceptor() {

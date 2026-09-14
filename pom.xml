@@ -80,8 +80,16 @@
 		</dependency>
 
 		<!-- HTTP client used by BflowApiClient to call the real API.
-		     RestClient ships with spring-boot-starter-web, already a
-		     transitive dependency of the MCP starter. -->
+		     NOT bundled with spring-boot-starter-web anymore in Boot 4.x:
+		     spring-boot-autoconfigure was split into feature modules, and
+		     RestClientAutoConfiguration (which produces the RestClient.Builder
+		     bean BflowApiClient's constructor needs) now lives in its own
+		     starter. Confirmed against a real "No qualifying bean of type
+		     RestClient.Builder" failure, not a guess. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-restclient</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.projectlombok</groupId>
