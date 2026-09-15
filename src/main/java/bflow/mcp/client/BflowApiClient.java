@@ -2,7 +2,6 @@ package bflow.mcp.client;
 
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -38,24 +37,18 @@ public class BflowApiClient {
     /** Header carrying a per-request correlation ID (ADR-0010 §9). */
     private static final String HEADER_CORRELATION_ID = "X-Correlation-Id";
 
-    /** Base URL of BFlow's public API, e.g. https://api.bflow-studio.com. */
-    private final String baseUrl;
-
     /** Underlying HTTP client. */
     private final RestClient restClient;
 
     /**
      * Creates the client.
-     * @param restClientBuilder Spring Boot's auto-configured builder —
-     *      injecting this instead of calling {@code RestClient.builder()}
-     *      directly is what lets a test bind {@code MockRestServiceServer}
-     *      to it.
-     * @param baseUrl BFlow API base URL, from {@code bflow.api.base-url}.
+     * @param bflowApiRestClient the pre-built, base-URL-configured
+     *      client — see {@code RestClientConfig}. Built there, not here,
+     *      so a test can override that one bean and guarantee any mock
+     *      request factory is in place before this class ever touches it.
      */
-    public BflowApiClient(final RestClient.Builder restClientBuilder,
-            @Value("${bflow.api.base-url}") final String baseUrl) {
-        this.baseUrl = baseUrl;
-        this.restClient = restClientBuilder.baseUrl(baseUrl).build();
+    public BflowApiClient(final RestClient bflowApiRestClient) {
+        this.restClient = bflowApiRestClient;
     }
 
     /**
@@ -177,7 +170,7 @@ public class BflowApiClient {
 
         if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
             throw new IllegalStateException(
-                    "No authenticated JWT to forward to " + baseUrl);
+                    "No authenticated JWT to forward to the BFlow API");
         }
 
         return jwtAuth.getToken().getTokenValue();
