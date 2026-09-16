@@ -104,8 +104,17 @@ being built. Follow the repo for updates.
 - **Open source.** The code is public — you (or anyone) can read
   exactly what it does before trusting it with financial data.
 
-## See more
+## Architecture
 
-Check out Bflow Studio and automate your finances
+See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for how a request actually
+flows through this service, and [`docs/adr/`](./docs/adr) for
+decisions specific to this repo (start with
+[the Cognito/MCP compatibility ADR](./docs/adr/0001-oauth-proxy-for-cognito-mcp-incompatibilities.md)
+if something OAuth-related breaks). The authorization model and
+security boundaries this service implements are documented in
+[`BFlow-Financial-Engine`'s ADR-0009 and ADR-0010](https://github.com/DiazzzDev/BFlow-Financial-Engine/tree/main/docs/adr).
 
-- https://www.bflow-studio.com/
+---
+
+Looking to set this up for development instead? See
+[DEVELOPMENT.md](./DEVELOPMENT.md).

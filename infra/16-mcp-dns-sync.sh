@@ -11,12 +11,12 @@
 #   bflow-mcp task starting up is already silently ignored by it today —
 #   nothing to fix there.
 #
-#   This script reuses the EXACT SAME Lambda source (infra/dns-sync,
-#   unchanged) as a SECOND deployed function, pointed at bflow-mcp via
-#   its own ECS_SERVICE_NAME/CLOUDFLARE_SECRET_ARN env vars, and adds it
-#   as a second target on the SAME existing rule. No new Go code, no new
-#   rule — just one more (function, secret, target) triple, following
-#   the identical create-or-update shape as 15-dns-sync.sh.
+#   This script builds the SAME Lambda source (infra/dns-sync, a copy of
+#   BFlow-Financial-Engine's, same module logic) as a SECOND deployed
+#   function, pointed at bflow-mcp via its own ECS_SERVICE_NAME/
+#   CLOUDFLARE_SECRET_ARN env vars, and adds it as a second target on
+#   the SAME existing rule. No new Go logic — just built and deployed
+#   from this repo instead of assuming the monolith's build artifact.
 #
 # Requires infra/mcp-cloudflare.env (same shape as cloudflare.env, but
 # for the mcp.bflow-studio.com record) — skips with instructions if
@@ -26,28 +26,29 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-source "$SCRIPT_DIR/../config.env"
-source "$SCRIPT_DIR/../outputs.env"
-source "$SCRIPT_DIR/../lib/helpers.sh"
+source "$SCRIPT_DIR/config.env"
+source "$SCRIPT_DIR/outputs.env"
+source "$SCRIPT_DIR/lib/helpers.sh"
 
-OUTPUT_FILE="$SCRIPT_DIR/../outputs.env"
+OUTPUT_FILE="$SCRIPT_DIR/outputs.env"
 
 MCP_ECS_SERVICE_NAME="bflow-mcp"
 MCP_LAMBDA_ROLE_NAME="${PROJECT_NAME}-mcp-dns-sync-lambda-role"
 MCP_LAMBDA_FUNCTION_NAME="${PROJECT_NAME}-mcp-dns-sync"
-EVENTBRIDGE_RULE_NAME="${PROJECT_NAME}-ecs-task-state-change" # shared, unchanged
+EVENTBRIDGE_RULE_NAME="bflow-ecs-task-state-change" # shared rule, lives in BFlow-Financial-Engine's infra, unchanged
 MCP_CLOUDFLARE_SECRET_NAME="${PROJECT_NAME}/mcp-cloudflare-dns"
-LAMBDA_SOURCE_DIR="$SCRIPT_DIR/../dns-sync" # same Go source as bflow-backend
-LAMBDA_ZIP="$LAMBDA_SOURCE_DIR/.build/lambda_function.zip"
+LAMBDA_SOURCE_DIR="$SCRIPT_DIR/dns-sync" # copied from BFlow-Financial-Engine/infra/dns-sync
+LAMBDA_BUILD_DIR="$LAMBDA_SOURCE_DIR/.build"
+LAMBDA_ZIP="$LAMBDA_BUILD_DIR/lambda_function.zip"
 
-if [[ ! -f "$SCRIPT_DIR/../mcp-cloudflare.env" ]]; then
+if [[ ! -f "$SCRIPT_DIR/mcp-cloudflare.env" ]]; then
     echo "infra/mcp-cloudflare.env not found - skipping MCP DNS sync setup."
-    echo "Copy infra/cloudflare.env.example to infra/mcp-cloudflare.env," \
+    echo "Copy infra/mcp-cloudflare.env.example to infra/mcp-cloudflare.env," \
          "point it at the mcp.bflow-studio.com record, and re-run."
     exit 0
 fi
 
-source "$SCRIPT_DIR/../mcp-cloudflare.env"
+source "$SCRIPT_DIR/mcp-cloudflare.env"
 
 for VAR in CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID CLOUDFLARE_DNS_RECORD_ID CLOUDFLARE_DNS_RECORD_NAME; do
     if [[ -z "${!VAR:-}" ]]; then
@@ -56,7 +57,7 @@ for VAR in CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID CLOUDFLARE_DNS_RECORD_ID CLOU
     fi
 done
 
-ECS_CLUSTER_ARN=$(require_output ECS_CLUSTER_ARN)
+: "${ECS_CLUSTER_ARN:?ECS_CLUSTER_ARN must be set in infra/config.env (copy it from BFlow-Financial-Engine/infra/outputs.env)}"
 
 create_or_update_mcp_secret() {
     local SECRET_ARN
@@ -166,21 +167,32 @@ create_mcp_lambda_role() {
     echo "$ROLE_ARN"
 }
 
+package_lambda() {
+    if ! command -v go >/dev/null 2>&1; then
+        echo "Go is not installed — needed to build infra/dns-sync." >&2
+        exit 1
+    fi
+
+    mkdir -p "$LAMBDA_BUILD_DIR"
+
+    (
+        cd "$LAMBDA_SOURCE_DIR"
+        CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+            go build -trimpath -ldflags="-s -w" -o "$LAMBDA_BUILD_DIR/bootstrap" .
+    )
+
+    (cd "$LAMBDA_BUILD_DIR" && zip -q "$LAMBDA_ZIP" bootstrap)
+
+    echo "Built $LAMBDA_ZIP"
+}
+
 deploy_mcp_lambda() {
     local ROLE_ARN="$1"
     local SECRET_ARN="$2"
     local FUNCTION_ARN
     local ENV_JSON
 
-    # Reuses the .build/lambda_function.zip already produced by
-    # 15-dns-sync.sh's package_lambda step — same binary, different
-    # deployed function/env vars. Run 15-dns-sync.sh first if this is a
-    # from-scratch bootstrap.
-    if [[ ! -f "$LAMBDA_ZIP" ]]; then
-        echo "$LAMBDA_ZIP not found. Run infra/bootstrap/15-dns-sync.sh" \
-             "first (it builds the shared dns-sync binary)."
-        exit 1
-    fi
+    package_lambda
 
     ENV_JSON="{
         \"Variables\": {
