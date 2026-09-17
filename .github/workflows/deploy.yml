@@ -1,7 +1,13 @@
 name: bflow-mcp Deploy
 
 on:
-  workflow_dispatch:      # manual only, for now — not wired to push yet
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -17,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     environment:
-      name: production   # matches the OIDC trust policy's sub condition
+      name: production
 
     steps:
       - name: Configure AWS credentials using OIDC
