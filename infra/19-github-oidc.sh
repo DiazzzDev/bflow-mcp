@@ -180,7 +180,16 @@ create_inline_policy() {
                 "${ECS_MCP_EXECUTION_ROLE_ARN}",
                 "${ECS_MCP_TASK_ROLE_ARN}"
             ]
-        }
+        },
+        {
+            "Sid": "IAMSelfPermissionSimulation",
+            "Effect": "Allow",
+            "Action": [
+                "iam:SimulatePrincipalPolicy",
+                "iam:GetContextKeysForPrincipalPolicy"
+            ],
+            "Resource": "arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
+         }
     ]
 }
 EOF
@@ -216,6 +225,7 @@ verify_permissions() {
         "logs:DescribeLogGroups|*|logs:DescribeLogGroups"
         "iam:PassRole|${ECS_MCP_EXECUTION_ROLE_ARN}|iam:PassRole (execution role)"
         "iam:PassRole|${ECS_MCP_TASK_ROLE_ARN}|iam:PassRole (task role)"
+        "iam:SimulatePrincipalPolicy|${ROLE_ARN}|iam:SimulatePrincipalPolicy (self-check, used by CI's own validate-environment step)"
     )
 
     echo ""
