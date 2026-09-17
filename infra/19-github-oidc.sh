@@ -133,6 +133,7 @@ create_inline_policy() {
             "Effect": "Allow",
             "Action": [
                 "ecr:BatchCheckLayerAvailability",
+                "ecr:BatchGetImage",
                 "ecr:CompleteLayerUpload",
                 "ecr:DescribeRepositories",
                 "ecr:GetDownloadUrlForLayer",
@@ -220,6 +221,7 @@ verify_permissions() {
     local CHECKS=(
         "ecr:GetAuthorizationToken|*|ecr:GetAuthorizationToken"
         "ecr:PutImage|${ECR_REPOSITORY_ARN}|ecr:PutImage"
+        "ecr:BatchGetImage|${ECR_REPOSITORY_ARN}|ecr:BatchGetImage"
         "ecs:RegisterTaskDefinition|*|ecs:RegisterTaskDefinition"
         "ecs:UpdateService|*|ecs:UpdateService"
         "ecs:CreateService|*|ecs:CreateService"
