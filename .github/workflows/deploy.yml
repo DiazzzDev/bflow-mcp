@@ -111,8 +111,11 @@ jobs:
 
       - name: Validate ECR repository
         run: |
+          set -euo pipefail
+          ECR_REPO_NAME="$(basename "${{ vars.ECR_REPOSITORY }}")"
+          echo "Checking ECR repository: $ECR_REPO_NAME"
           aws ecr describe-repositories \
-            --repository-names "${{ vars.ECR_REPOSITORY }}" \
+            --repository-names "$ECR_REPO_NAME" \
             >/dev/null
 
       - name: Validate ECS cluster
