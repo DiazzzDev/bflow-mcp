@@ -25,6 +25,8 @@ OUTPUT_FILE="$SCRIPT_DIR/outputs.env"
 
 OIDC_PROVIDER_URL="token.actions.githubusercontent.com"
 ROLE_NAME="bflow-mcp-github-actions-role"
+GITHUB_OWNER_ID="174159480"
+GITHUB_REPOSITORY_ID="1368671239"
 
 ECR_REPOSITORY_ARN=$(require_output ECR_REPOSITORY_ARN)
 ECS_MCP_EXECUTION_ROLE_ARN=$(require_output ECS_MCP_EXECUTION_ROLE_ARN)
@@ -79,7 +81,7 @@ create_deploy_role() {
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
                 "StringEquals": {
-                    "token.actions.githubusercontent.com:sub": "repo:${GITHUB_OWNER}/${GITHUB_REPOSITORY}:environment:production",
+                    "token.actions.githubusercontent.com:sub": "repo:${GITHUB_OWNER}@${GITHUB_OWNER_ID}/${GITHUB_REPOSITORY}@${GITHUB_REPOSITORY_ID}:environment:production",
                     "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
                 }
             }
