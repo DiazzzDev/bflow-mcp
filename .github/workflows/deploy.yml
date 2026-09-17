@@ -172,8 +172,9 @@ jobs:
           # the policy must be tested against that same ARN, not "*" —
           # otherwise the simulation always reports implicitDeny even
           # when the policy is correct.
+          ECR_REPO_NAME="$(basename "$ECR_REPOSITORY")"
           ECR_REPOSITORY_ARN=$(aws ecr describe-repositories \
-            --repository-names "$ECR_REPOSITORY" \
+            --repository-names "$ECR_REPO_NAME" \
             --query "repositories[0].repositoryArn" \
             --output text)
 
