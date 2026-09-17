@@ -200,33 +200,43 @@ verify_permissions() {
     local ROLE_ARN
     ROLE_ARN=$(require_output GITHUB_ACTIONS_ROLE_ARN)
 
-    local ACTIONS=(
-        "ecr:GetAuthorizationToken"
-        "ecr:PutImage"
-        "ecs:RegisterTaskDefinition"
-        "ecs:UpdateService"
-        "ecs:CreateService"
-        "ec2:DescribeSubnets"
-        "logs:DescribeLogGroups"
-        "iam:PassRole"
+    # action | resource ARN to simulate against | display label
+    # Actions scoped to "Resource": "*" in the policy are tested against
+    # "*". Actions scoped to a specific ARN must be simulated against
+    # that same ARN — simulating them against "*" always returns
+    # implicitDeny, even when the policy is correct (a specific ARN
+    # never matches the resource "*").
+    local CHECKS=(
+        "ecr:GetAuthorizationToken|*|ecr:GetAuthorizationToken"
+        "ecr:PutImage|${ECR_REPOSITORY_ARN}|ecr:PutImage"
+        "ecs:RegisterTaskDefinition|*|ecs:RegisterTaskDefinition"
+        "ecs:UpdateService|*|ecs:UpdateService"
+        "ecs:CreateService|*|ecs:CreateService"
+        "ec2:DescribeSubnets|*|ec2:DescribeSubnets"
+        "logs:DescribeLogGroups|*|logs:DescribeLogGroups"
+        "iam:PassRole|${ECS_MCP_EXECUTION_ROLE_ARN}|iam:PassRole (execution role)"
+        "iam:PassRole|${ECS_MCP_TASK_ROLE_ARN}|iam:PassRole (task role)"
     )
 
     echo ""
     echo "Verifying permissions (policy simulation, no live calls made):"
 
     local ALL_OK=true
-    for ACTION in "${ACTIONS[@]}"; do
+    for ENTRY in "${CHECKS[@]}"; do
+        IFS='|' read -r ACTION RESOURCE LABEL <<<"$ENTRY"
+
         local DECISION
         DECISION=$(aws iam simulate-principal-policy \
             --policy-source-arn "$ROLE_ARN" \
             --action-names "$ACTION" \
+            --resource-arns "$RESOURCE" \
             --query "EvaluationResults[0].EvalDecision" \
             --output text)
 
         if [[ "$DECISION" == "allowed" ]]; then
-            echo "  [OK]     $ACTION"
+            echo "  [OK]     $LABEL"
         else
-            echo "  [MISSING] $ACTION -> $DECISION"
+            echo "  [MISSING] $LABEL -> $DECISION"
             ALL_OK=false
         fi
     done

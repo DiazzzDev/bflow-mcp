@@ -152,34 +152,47 @@ jobs:
       - name: Verify this role can actually perform the deploy actions
         env:
           AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          ECS_MCP_EXECUTION_ROLE_ARN: ${{ vars.ECS_MCP_EXECUTION_ROLE_ARN }}
+          ECS_MCP_TASK_ROLE_ARN: ${{ vars.ECS_MCP_TASK_ROLE_ARN }}
         run: |
           set -euo pipefail
 
-          # Policy simulation, not a live call — this fails the build if
-          # the role's policy has drifted (e.g. edited by hand later)
-          # and no longer grants something the deploy job below needs,
-          # instead of finding out mid-deploy.
-          actions=(
-            "ecr:GetAuthorizationToken"
-            "ecr:PutImage"
-            "ecs:RegisterTaskDefinition"
-            "ecs:UpdateService"
-            "ecs:CreateService"
-            "ec2:DescribeSubnets"
-            "logs:DescribeLogGroups"
-            "iam:PassRole"
+          # Same actions as infra/19-github-oidc.sh's verify_permissions,
+          # simulated the same way: actions scoped to a specific ARN in
+          # the policy must be tested against that same ARN, not "*" —
+          # otherwise the simulation always reports implicitDeny even
+          # when the policy is correct.
+          ECR_REPOSITORY_ARN=$(aws ecr describe-repositories \
+            --repository-names "$ECR_REPOSITORY" \
+            --query "repositories[0].repositoryArn" \
+            --output text)
+
+          checks=(
+            "ecr:GetAuthorizationToken|*"
+            "ecr:PutImage|${ECR_REPOSITORY_ARN}"
+            "ecs:RegisterTaskDefinition|*"
+            "ecs:UpdateService|*"
+            "ecs:CreateService|*"
+            "ec2:DescribeSubnets|*"
+            "logs:DescribeLogGroups|*"
+            "iam:PassRole|${ECS_MCP_EXECUTION_ROLE_ARN}"
+            "iam:PassRole|${ECS_MCP_TASK_ROLE_ARN}"
           )
 
           all_ok=true
-          for action in "${actions[@]}"; do
+          for entry in "${checks[@]}"; do
+            IFS='|' read -r action resource <<< "$entry"
+
             decision=$(aws iam simulate-principal-policy \
               --policy-source-arn "$AWS_ROLE_ARN" \
               --action-names "$action" \
+              --resource-arns "$resource" \
               --query "EvaluationResults[0].EvalDecision" \
               --output text)
 
             if [ "$decision" != "allowed" ]; then
-              echo "::error::Missing permission: $action ($decision)"
+              echo "::error::Missing permission: $action on $resource ($decision)"
               all_ok=false
             fi
           done

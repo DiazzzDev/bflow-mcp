@@ -5,7 +5,7 @@
   "cpu": "256",
   "memory": "512",
 
-  "executionRoleArn": "${ECS_EXECUTION_ROLE_ARN}",
+  "executionRoleArn": "${ECS_MCP_EXECUTION_ROLE_ARN}",
   "taskRoleArn": "${ECS_MCP_TASK_ROLE_ARN}",
 
   "containerDefinitions": [
@@ -21,7 +21,9 @@
       "environment": [
         { "name": "SPRING_PROFILES_ACTIVE", "value": "prod" },
         { "name": "COGNITO_ISSUER_URI", "value": "${COGNITO_ISSUER_URI}" },
-        { "name": "BFLOW_API_BASE_URL", "value": "https://api.bflow-studio.com" }
+        { "name": "COGNITO_HOSTED_UI_DOMAIN", "value": "${COGNITO_HOSTED_UI_DOMAIN}" },
+        { "name": "BFLOW_API_BASE_URL", "value": "${BFLOW_API_BASE_URL}" },
+        { "name": "BFLOW_MCP_PUBLIC_BASE_URL", "value": "${BFLOW_MCP_PUBLIC_BASE_URL}" }
       ],
 
       "logConfiguration": {

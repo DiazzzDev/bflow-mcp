@@ -183,7 +183,7 @@ package_lambda() {
 
     (cd "$LAMBDA_BUILD_DIR" && zip -q "$LAMBDA_ZIP" bootstrap)
 
-    echo "Built $LAMBDA_ZIP"
+    echo "Built $LAMBDA_ZIP" >&2
 }
 
 deploy_mcp_lambda() {
