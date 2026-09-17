@@ -29,6 +29,23 @@ RESOURCE_SERVER_ID="bflow-mcp"
 RESOURCE_SERVER_NAME="BFlow MCP"
 APP_CLIENT_NAME="bflow-mcp-agent-client"
 
+# update-user-pool-client REPLACES the entire callback-urls list, it does
+# not append — so every platform ever connected has to stay listed here,
+# not just the one being added right now. Add a line per platform as you
+# onboard it; never drop an existing one just because you're adding a
+# new one. Cognito requires an EXACT match (no wildcards), so each entry
+# must be the literal fixed callback URL that platform's docs specify —
+# confirm it there before adding it here.
+CALLBACK_URLS=(
+    # MCP Inspector, for local testing — keep for as long as you still test locally.
+    "http://127.0.0.1:6274/oauth/callback"
+    "http://localhost:6274/oauth/callback"
+    # ChatGPT custom connectors (fixed, exact — not the chatgpt.com/connector/oauth/* wildcard variant).
+    "https://chatgpt.com/connector_platform_oauth_redirect"
+    # Claude.ai custom connectors (fixed, exact).
+    "https://claude.ai/api/mcp/auth_callback"
+)
+
 # Scope catalog per ADR-0009 §2 (naming corrected to Cognito's actual
 # <resource-server-identifier>/<ScopeName> token format — colons aren't
 # part of Cognito's convention, dots are).
@@ -103,7 +120,7 @@ create_or_update_app_client() {
             --allowed-o-auth-flows-user-pool-client \
             --allowed-o-auth-scopes "${ALLOWED_SCOPES[@]}" \
             --supported-identity-providers COGNITO Google \
-            --callback-urls "http://127.0.0.1:6274/oauth/callback" "http://localhost:6274/oauth/callback" \
+            --callback-urls "${CALLBACK_URLS[@]}" \
             --prevent-user-existence-errors ENABLED \
             >/dev/null
 
@@ -118,7 +135,7 @@ create_or_update_app_client() {
             --allowed-o-auth-flows-user-pool-client \
             --allowed-o-auth-scopes "${ALLOWED_SCOPES[@]}" \
             --supported-identity-providers COGNITO Google \
-            --callback-urls "http://127.0.0.1:6274/oauth/callback" "http://localhost:6274/oauth/callback" \
+            --callback-urls "${CALLBACK_URLS[@]}" \
             --prevent-user-existence-errors ENABLED \
             --query "UserPoolClient.ClientId" --output text)
 
