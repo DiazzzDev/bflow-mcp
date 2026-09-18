@@ -24,8 +24,14 @@
 
 	<properties>
 		<java.version>21</java.version>
-		<spring-ai.version>1.1.2</spring-ai.version>
+		<spring-ai.version>1.1.6</spring-ai.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+		<!-- CVE-2026-65182/65905/68525 (CRITICAL) — spring-boot-starter-parent
+		     4.1.1 manages tomcat-embed-core 11.0.24. Override the managed
+		     version directly rather than bumping the parent (unverified
+		     which 4.1.x patch, if any, moves tomcat on its own — this
+		     property override is guaranteed to work regardless). -->
+		<tomcat.version>11.0.25</tomcat.version>
 	</properties>
 
 	<dependencyManagement>

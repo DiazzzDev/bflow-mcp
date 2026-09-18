@@ -178,6 +178,38 @@ class DcrShimIntegrationTest extends AbstractToolIntegrationTest {
     }
 
     @Test
+    void tokenMapsTheCallersRedirectUriToTheFixedCognitoFacingOneForADcrClient() {
+        // Regression test: Cognito ties an authorization code to the
+        // exact redirect_uri used to request it (RFC 6749 §4.1.3).
+        // /oauth/authorize substitutes cognitoFacingCallbackUri() for
+        // the caller's real one — /oauth/token has to make the SAME
+        // substitution, or Cognito rejects the exchange with
+        // invalid_redirect even though everything else is correct.
+        String clientId = registerAndGetClientId(ALLOWED_REDIRECT_URI);
+
+        mockBflowApi.expect(requestTo("https://example.auth.us-east-1.amazoncognito.com/oauth2/token"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().string(
+                        containsString("redirect_uri=http%3A%2F%2Flocalhost%3A8081%2Foauth%2Fcallback")))
+                .andExpect(content().string(not(containsString(ALLOWED_REDIRECT_URI))))
+                .andRespond(withSuccess("{\"access_token\":\"real-token\"}", MediaType.APPLICATION_JSON));
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "authorization_code");
+        form.add("code", "cognito-issued-code");
+        form.add("code_verifier", "abc123");
+        form.add("client_id", clientId);
+        // The caller's OWN real redirect_uri — what it used when it
+        // called /oauth/authorize, not what we actually sent Cognito.
+        form.add("redirect_uri", ALLOWED_REDIRECT_URI);
+
+        var response = proxyController.token(form);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        mockBflowApi.verify();
+    }
+
+    @Test
     void tokenForwardsANonDcrClientIdUntouched() {
         mockBflowApi.expect(requestTo("https://example.auth.us-east-1.amazoncognito.com/oauth2/token"))
                 .andExpect(method(HttpMethod.POST))
@@ -187,6 +219,30 @@ class DcrShimIntegrationTest extends AbstractToolIntegrationTest {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("grant_type", "refresh_token");
         form.add("client_id", "test-real-cognito-app-client-id");
+
+        var response = proxyController.token(form);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        mockBflowApi.verify();
+    }
+
+    @Test
+    void tokenLeavesRedirectUriUntouchedForANonDcrClient() {
+        // A caller presenting the real Cognito client_id directly (no
+        // DCR) still owns its own real redirect_uri end to end — we
+        // never substituted it at /oauth/authorize for that caller, so
+        // /oauth/token must not substitute it either.
+        mockBflowApi.expect(requestTo("https://example.auth.us-east-1.amazoncognito.com/oauth2/token"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().string(
+                        containsString("redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback")))
+                .andRespond(withSuccess("{\"access_token\":\"real-token\"}", MediaType.APPLICATION_JSON));
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "authorization_code");
+        form.add("code", "cognito-issued-code");
+        form.add("client_id", "test-real-cognito-app-client-id");
+        form.add("redirect_uri", ALLOWED_REDIRECT_URI);
 
         var response = proxyController.token(form);
 

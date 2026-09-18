@@ -21,6 +21,7 @@ public class ToolRegistrationConfig {
      * @param listBudgetsTool the budgets read tool.
      * @param listRecurringTool the recurring transactions read tool.
      * @param getSpendingSummaryTool the spending summary read tool.
+     * @param listCategoriesTool the categories read tool.
      * @param createBudgetTool the create budget write tool.
      * @param createTransactionTool the create expense/income write tool.
      * @param updateTransactionTool the update expense/income write tool.
@@ -34,6 +35,7 @@ public class ToolRegistrationConfig {
             final ListBudgetsTool listBudgetsTool,
             final ListRecurringTool listRecurringTool,
             final GetSpendingSummaryTool getSpendingSummaryTool,
+            final ListCategoriesTool listCategoriesTool,
             final CreateBudgetTool createBudgetTool,
             final CreateTransactionTool createTransactionTool,
             final UpdateTransactionTool updateTransactionTool,
@@ -45,6 +47,7 @@ public class ToolRegistrationConfig {
                         listBudgetsTool,
                         listRecurringTool,
                         getSpendingSummaryTool,
+                        listCategoriesTool,
                         createBudgetTool,
                         createTransactionTool,
                         updateTransactionTool,

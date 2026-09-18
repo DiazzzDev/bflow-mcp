@@ -201,11 +201,20 @@ public class OAuthProxyController {
 
     /**
      * Proxies the token exchange: forwards the POST to Cognito's real
-     * token endpoint, with {@code resource} stripped and a DCR
-     * {@code client_id} (if present) mapped to the real Cognito App
-     * Client id — same header-rebuilding rationale as before: a fresh,
-     * minimal header set rather than Cognito's raw transport headers
-     * copied verbatim, since blindly relaying those (e.g.
+     * token endpoint, with {@code resource} stripped and, for a DCR
+     * client, both {@code client_id} AND {@code redirect_uri} mapped
+     * to the fixed values {@link #authorize} actually presented to
+     * Cognito. Both have to move together: Cognito ties an
+     * authorization code to the exact {@code redirect_uri} used to
+     * request it (RFC 6749 §4.1.3), and since {@link #authorize}
+     * substitutes {@link #cognitoFacingCallbackUri()} for the caller's
+     * real one, presenting the caller's real {@code redirect_uri} back
+     * here — even though it's the value the caller itself used when it
+     * called OUR {@code /oauth/authorize} — is a mismatch from
+     * Cognito's point of view and fails with {@code invalid_redirect}.
+     * Same header-rebuilding rationale as before: a fresh, minimal
+     * header set rather than Cognito's raw transport headers copied
+     * verbatim, since blindly relaying those (e.g.
      * {@code Transfer-Encoding}/{@code Content-Length}) produces a
      * response the browser's {@code fetch} can't reconstruct
      * ("Failed to construct 'Headers': Invalid name"). Uses
@@ -221,13 +230,26 @@ public class OAuthProxyController {
     public ResponseEntity<String> token(
             @RequestParam final MultiValueMap<String, String> formParams) {
 
+        // Decided once, up front: whether client_id/redirect_uri get
+        // substituted depends on the SAME decision for both, so it
+        // can't be made independently per key inside the forEach below
+        // (form param iteration order isn't guaranteed to see client_id
+        // before redirect_uri).
+        String presentedClientId = formParams.getFirst("client_id");
+        boolean isDcrClient = presentedClientId != null && isDcrClientId(presentedClientId);
+
         MultiValueMap<String, String> forwarded = new LinkedMultiValueMap<>();
         formParams.forEach((key, values) -> {
             if ("resource".equals(key)) {
                 return;
             }
-            if ("client_id".equals(key) && !values.isEmpty()) {
-                forwarded.put("client_id", List.of(realClientIdFor(values.get(0))));
+            if ("client_id".equals(key)) {
+                forwarded.put("client_id",
+                        List.of(isDcrClient ? cognitoAppClientId : presentedClientId));
+                return;
+            }
+            if ("redirect_uri".equals(key) && isDcrClient) {
+                forwarded.put("redirect_uri", List.of(cognitoFacingCallbackUri()));
                 return;
             }
             forwarded.put(key, values);
@@ -262,20 +284,16 @@ public class OAuthProxyController {
     }
 
     /**
-     * Maps a token-request {@code client_id} to the real Cognito App
-     * Client id if it's one of ours; otherwise forwards it untouched
-     * (a non-DCR caller presenting the real client id directly still
-     * works exactly as before this shim existed).
-     * @param clientId the {@code client_id} the token request presented.
-     * @return {@link #cognitoAppClientId} if {@code clientId} decodes as
-     *      a valid registration token, else {@code clientId} itself.
+     * @param clientId the {@code client_id} a token request presented.
+     * @return {@code true} if it decodes as one of our own DCR
+     *      registration tokens.
      */
-    private String realClientIdFor(final String clientId) {
+    private boolean isDcrClientId(final String clientId) {
         try {
             tokenCodec.decodeClientRegistration(clientId);
-            return cognitoAppClientId;
+            return true;
         } catch (InvalidProxyTokenException e) {
-            return clientId;
+            return false;
         }
     }
 }

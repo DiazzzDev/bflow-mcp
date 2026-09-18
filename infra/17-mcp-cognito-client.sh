@@ -74,7 +74,8 @@ SCOPES_JSON='[
   {"ScopeName":"budgets.write","ScopeDescription":"Create or update budgets"},
   {"ScopeName":"recurring.read","ScopeDescription":"View recurring items"},
   {"ScopeName":"recurring.write","ScopeDescription":"Create or update recurring items"},
-  {"ScopeName":"dashboard.read","ScopeDescription":"View dashboard/spending summaries"}
+  {"ScopeName":"dashboard.read","ScopeDescription":"View dashboard/spending summaries"},
+  {"ScopeName":"categories.read","ScopeDescription":"View transaction categories"}
 ]'
 
 create_or_update_resource_server() {
@@ -113,6 +114,7 @@ create_or_update_app_client() {
         "$RESOURCE_SERVER_ID/recurring.read"
         "$RESOURCE_SERVER_ID/recurring.write"
         "$RESOURCE_SERVER_ID/dashboard.read"
+        "$RESOURCE_SERVER_ID/categories.read"
     )
 
     # NOTE: CallbackURLs below is now only relevant to callers that
