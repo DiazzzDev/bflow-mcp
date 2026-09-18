@@ -2,10 +2,13 @@ package bflow.mcp.security;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
@@ -15,30 +18,59 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
- * Thin OAuth proxy in front of Cognito's real {@code /oauth2/authorize}
- * and {@code /oauth2/token} endpoints.
+ * OAuth proxy in front of Cognito's real {@code /oauth2/authorize} and
+ * {@code /oauth2/token} endpoints, plus the callback leg of bflow-mcp's
+ * own stateless DCR shim (ADR-0002).
  *
  * <p>Cognito does not implement RFC 8707 (Resource Indicators): it
  * rejects any request carrying a {@code resource} parameter, which
  * every spec-compliant MCP client sends unconditionally. This class
- * forwards every request through untouched <b>except</b> for that one
- * parameter. Nothing else — {@code code_challenge},
- * {@code code_challenge_method}, {@code state}, {@code redirect_uri},
- * all survive verbatim, or PKCE breaks.</p>
+ * strips that parameter on the way through, same as before.</p>
  *
- * <p>Cognito's real token response (and its {@code iss} claim) passes
- * through unmodified — this proxy is a strip-and-forward relay, not an
- * authorization server. It never mints, signs, or inspects tokens.</p>
+ * <p>It now also does one more substitution on {@code /oauth/authorize}
+ * and {@code /oauth/token}: the {@code client_id} an MCP client
+ * presents is one of bflow-mcp's own signed {@code client_id} tokens
+ * (see {@link ClientRegistrationController}), not a Cognito client id.
+ * {@link #authorize} decodes it, checks the requested
+ * {@code redirect_uri} matches what was registered, and forwards to
+ * Cognito with the one real, fixed {@code cognitoAppClientId} instead —
+ * Cognito itself still only ever sees a single static App Client, same
+ * as before DCR existed. The caller's real {@code redirect_uri} and
+ * {@code state} travel through Cognito's login/consent UI packed into
+ * an "outer state" JWT, since Cognito's own {@code redirect_uri} for
+ * this flow is now always bflow-mcp's fixed {@code /oauth/callback};
+ * {@link #callback} unpacks that JWT and does the final redirect back
+ * to the caller's real, allowlisted destination.</p>
+ *
+ * <p>Cognito's real token response (and its {@code iss} claim) still
+ * passes through {@link #token} unmodified — this proxy mints no
+ * tokens of its own. It signs exactly two kinds of JWT
+ * ({@link ProxyTokenCodec}), and neither is ever presented to a
+ * resource server as an access token.</p>
  */
 @RestController
 public class OAuthProxyController {
 
+    /** Query/form params this proxy substitutes rather than forwards verbatim. */
+    private static final Set<String> SUBSTITUTED_PARAMS =
+            Set.of("resource", "client_id", "redirect_uri", "state");
+
     /** Cognito's Hosted UI domain, e.g. {@code xxx.auth.us-east-1.amazoncognito.com}. */
     private final String hostedUiDomain;
+
+    /** bflow-mcp's own public URL — used to build the fixed Cognito-facing callback. */
+    private final String publicBaseUrl;
+
+    /** The one real, static Cognito App Client id every DCR client_id maps to. */
+    private final String cognitoAppClientId;
+
+    private final ProxyTokenCodec tokenCodec;
+    private final RedirectUriAllowlist allowlist;
 
     /** Client used to forward the token exchange to Cognito. */
     private final RestClient restClient;
@@ -46,41 +78,136 @@ public class OAuthProxyController {
     /**
      * Creates the proxy.
      * @param hostedUiDomain Cognito's Hosted UI domain (not the issuer).
+     * @param publicBaseUrl bflow-mcp's own public URL.
+     * @param cognitoAppClientId the real Cognito App Client id
+     *      ({@code bflow-mcp-agent-client}, provisioned by
+     *      {@code infra/17-mcp-cognito-client.sh}).
+     * @param tokenCodec signs/verifies this proxy's own JWTs.
+     * @param allowlist the redirect URIs {@link #authorize} will accept,
+     *      re-checked here even though {@link ClientRegistrationController}
+     *      already checked it once at registration time — a
+     *      long-lived {@code client_id} token shouldn't outlive a
+     *      platform being removed from config.
+     * @param oauthProxyRestClient the client used to forward the token
+     *      exchange to Cognito — {@code RestClientConfig}'s bean, not
+     *      built inline, so a test can bind a mock server to it (same
+     *      pattern as {@code BflowApiClient}'s).
      */
     public OAuthProxyController(
-            @Value("${bflow.cognito.hosted-ui-domain}") final String hostedUiDomain) {
+            @Value("${bflow.cognito.hosted-ui-domain}") final String hostedUiDomain,
+            @Value("${bflow.mcp.public-base-url}") final String publicBaseUrl,
+            @Value("${bflow.cognito.app-client-id}") final String cognitoAppClientId,
+            final ProxyTokenCodec tokenCodec,
+            final RedirectUriAllowlist allowlist,
+            final RestClient oauthProxyRestClient) {
         this.hostedUiDomain = hostedUiDomain;
-        this.restClient = RestClient.create();
+        this.publicBaseUrl = publicBaseUrl;
+        this.cognitoAppClientId = cognitoAppClientId;
+        this.tokenCodec = tokenCodec;
+        this.allowlist = allowlist;
+        this.restClient = oauthProxyRestClient;
     }
 
     /**
-     * Proxies the authorization request: 302-redirects the browser to
-     * Cognito's real Hosted UI, with {@code resource} stripped.
+     * Proxies the authorization request: decodes the caller's
+     * {@code client_id} token, validates {@code redirect_uri} against
+     * it and against the allowlist, then 302-redirects the browser to
+     * Cognito's real Hosted UI — with the real App Client id, a fixed
+     * callback URI, and an outer-state JWT in place of the caller's own.
      *
      * @param params every query parameter the client sent.
      * @return a redirect to Cognito's real authorize endpoint.
+     * @throws ResponseStatusException 400 if {@code client_id} doesn't
+     *      decode, or {@code redirect_uri} doesn't match the
+     *      registration or isn't currently allowlisted.
      */
     @GetMapping("/oauth/authorize")
     public RedirectView authorize(@RequestParam final Map<String, String> params) {
+        ProxyTokenCodec.ClientRegistration registration;
+        try {
+            registration = tokenCodec.decodeClientRegistration(params.get("client_id"));
+        } catch (InvalidProxyTokenException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid client_id", e);
+        }
+
+        String requestedRedirectUri = params.get("redirect_uri");
+        if (!registration.redirectUri().equals(requestedRedirectUri)
+                || !allowlist.isAllowed(requestedRedirectUri)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "redirect_uri does not match this client's registration");
+        }
+
+        String outerState = tokenCodec.encodeCallbackState(requestedRedirectUri, params.get("state"));
+
         UriComponentsBuilder target = UriComponentsBuilder
                 .fromUriString("https://" + hostedUiDomain + "/oauth2/authorize");
 
         params.forEach((key, value) -> {
-            if (!"resource".equals(key)) {
+            if (!SUBSTITUTED_PARAMS.contains(key)) {
                 target.queryParam(key, value);
             }
         });
+
+        target.queryParam("client_id", cognitoAppClientId);
+        target.queryParam("redirect_uri", cognitoFacingCallbackUri());
+        target.queryParam("state", outerState);
+
+        return new RedirectView(target.build().toUriString());
+    }
+
+    /**
+     * The callback leg of the DCR shim: Cognito redirects here (the
+     * fixed URI every {@link #authorize} call now requests) with
+     * {@code code} and the outer-state JWT as {@code state}. Unpacks
+     * that JWT and does the real, final redirect back to the caller's
+     * own {@code redirect_uri} with its original {@code state}.
+     *
+     * @param params query parameters Cognito sent: {@code code} and
+     *      {@code state} on success, or {@code error}/{@code error_description}
+     *      if the user denied consent or something else went wrong.
+     * @return a redirect to the caller's real, allowlisted redirect URI.
+     * @throws ResponseStatusException 400 if {@code state} doesn't
+     *      decode or has expired — deliberately an error page, never a
+     *      redirect to an unverified destination.
+     */
+    @GetMapping("/oauth/callback")
+    public RedirectView callback(@RequestParam final Map<String, String> params) {
+        ProxyTokenCodec.CallbackState callbackState;
+        try {
+            callbackState = tokenCodec.decodeCallbackState(params.get("state"));
+        } catch (InvalidProxyTokenException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "invalid or expired outer state", e);
+        }
+
+        UriComponentsBuilder target = UriComponentsBuilder
+                .fromUriString(callbackState.realRedirectUri());
+
+        if (params.containsKey("code")) {
+            target.queryParam("code", params.get("code"));
+        }
+        if (params.containsKey("error")) {
+            target.queryParam("error", params.get("error"));
+        }
+        if (params.containsKey("error_description")) {
+            target.queryParam("error_description", params.get("error_description"));
+        }
+        if (callbackState.realState() != null) {
+            target.queryParam("state", callbackState.realState());
+        }
 
         return new RedirectView(target.build().toUriString());
     }
 
     /**
      * Proxies the token exchange: forwards the POST to Cognito's real
-     * token endpoint, with {@code resource} stripped, and returns
-     * Cognito's status and body — but with a fresh, minimal header set,
-     * not Cognito's raw transport headers copied verbatim. Blindly
-     * relaying those (e.g. {@code Transfer-Encoding}/{@code Content-Length})
-     * produces a response the browser's {@code fetch} can't reconstruct
+     * token endpoint, with {@code resource} stripped and a DCR
+     * {@code client_id} (if present) mapped to the real Cognito App
+     * Client id — same header-rebuilding rationale as before: a fresh,
+     * minimal header set rather than Cognito's raw transport headers
+     * copied verbatim, since blindly relaying those (e.g.
+     * {@code Transfer-Encoding}/{@code Content-Length}) produces a
+     * response the browser's {@code fetch} can't reconstruct
      * ("Failed to construct 'Headers': Invalid name"). Uses
      * {@code exchange()} rather than {@code retrieve()} so a 4xx from
      * Cognito (a real grant error the client needs to see) is returned
@@ -96,9 +223,14 @@ public class OAuthProxyController {
 
         MultiValueMap<String, String> forwarded = new LinkedMultiValueMap<>();
         formParams.forEach((key, values) -> {
-            if (!"resource".equals(key)) {
-                forwarded.put(key, values);
+            if ("resource".equals(key)) {
+                return;
             }
+            if ("client_id".equals(key) && !values.isEmpty()) {
+                forwarded.put("client_id", List.of(realClientIdFor(values.get(0))));
+                return;
+            }
+            forwarded.put(key, values);
         });
 
         return restClient.post()
@@ -115,5 +247,35 @@ public class OAuthProxyController {
                             .contentType(MediaType.APPLICATION_JSON)
                             .body(body);
                 });
+    }
+
+    /**
+     * bflow-mcp's own callback URL, as registered in Cognito's App
+     * Client ({@code infra/17-mcp-cognito-client.sh}'s
+     * {@code CALLBACK_URLS}) — the single fixed {@code redirect_uri}
+     * every {@link #authorize} call now sends to Cognito, regardless of
+     * which real platform is behind the DCR {@code client_id}.
+     * @return {@code publicBaseUrl + "/oauth/callback"}.
+     */
+    private String cognitoFacingCallbackUri() {
+        return publicBaseUrl + "/oauth/callback";
+    }
+
+    /**
+     * Maps a token-request {@code client_id} to the real Cognito App
+     * Client id if it's one of ours; otherwise forwards it untouched
+     * (a non-DCR caller presenting the real client id directly still
+     * works exactly as before this shim existed).
+     * @param clientId the {@code client_id} the token request presented.
+     * @return {@link #cognitoAppClientId} if {@code clientId} decodes as
+     *      a valid registration token, else {@code clientId} itself.
+     */
+    private String realClientIdFor(final String clientId) {
+        try {
+            tokenCodec.decodeClientRegistration(clientId);
+            return cognitoAppClientId;
+        } catch (InvalidProxyTokenException e) {
+            return clientId;
+        }
     }
 }

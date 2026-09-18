@@ -33,7 +33,20 @@ bflow:
     # real ones (which reject the RFC 8707 `resource` param every
     # spec-compliant MCP client sends). See OAuthProxyController.
     public-base-url: ${BFLOW_MCP_PUBLIC_BASE_URL:http://localhost:8081}
+    proxy:
+      # Secret this service signs its own JWTs with (DCR client_id
+      # tokens and outer-state tokens, ProxyTokenCodec) — never reused
+      # from Cognito. At least 32 bytes for HS256.
+      signing-secret: ${BFLOW_MCP_PROXY_SIGNING_SECRET}
+      # Comma-separated, exact-match redirect URIs POST /oauth/register
+      # is allowed to issue a client_id for (RedirectUriAllowlist).
+      # Mirrors CALLBACK_URLS in infra/17-mcp-cognito-client.sh — add a
+      # platform here, not there, to onboard it going forward.
+      allowed-redirect-uris: ${BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS}
   cognito:
     # The Hosted UI domain, NOT the issuer URL — this is where the real
     # /oauth2/authorize and /oauth2/token endpoints actually live.
     hosted-ui-domain: ${COGNITO_HOSTED_UI_DOMAIN}
+    # The real, static App Client id (bflow-mcp-agent-client) every DCR
+    # client_id token maps to — see infra/17-mcp-cognito-client.sh.
+    app-client-id: ${COGNITO_APP_CLIENT_ID}

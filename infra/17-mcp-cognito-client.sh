@@ -36,7 +36,24 @@ APP_CLIENT_NAME="bflow-mcp-agent-client"
 # new one. Cognito requires an EXACT match (no wildcards), so each entry
 # must be the literal fixed callback URL that platform's docs specify —
 # confirm it there before adding it here.
+#
+# Since the DCR shim (ADR-0002), Cognito itself only ever sees ONE of
+# these — bflow-mcp's own fixed {publicBaseUrl}/oauth/callback — for
+# every platform that connects via /oauth/register. The MCP
+# Inspector/ChatGPT/Claude.ai entries below are the historical,
+# pre-shim direct callbacks; kept for now for any client still
+# presenting the real Cognito client_id directly instead of going
+# through DCR. Onboarding a NEW platform going forward does NOT need a
+# new line here — add its callback URL to
+# bflow.mcp.proxy.allowed-redirect-uris in application.yml instead and
+# redeploy; re-run this script only if bflow-mcp's own public URL
+# changes, or you drop the pre-shim entries once every connected
+# platform has been confirmed to use DCR.
 CALLBACK_URLS=(
+    # bflow-mcp's own callback — the DCR shim's fixed Cognito-facing
+    # redirect_uri. Required for every platform onboarded via
+    # /oauth/register. Set to your real BFLOW_MCP_PUBLIC_BASE_URL.
+    "${BFLOW_MCP_PUBLIC_BASE_URL:-http://localhost:8081}/oauth/callback"
     # MCP Inspector, for local testing — keep for as long as you still test locally.
     "http://127.0.0.1:6274/oauth/callback"
     "http://localhost:6274/oauth/callback"
@@ -98,13 +115,14 @@ create_or_update_app_client() {
         "$RESOURCE_SERVER_ID/dashboard.read"
     )
 
-    # NOTE: CallbackURLs below is a STARTING list for local testing only
-    # (the MCP Inspector's default redirect). Cognito has no Dynamic
-    # Client Registration, so every AI platform you connect this to
-    # later (Claude, ChatGPT, etc.) needs its OWN callback URL added
-    # here manually, per that platform's connector-setup documentation,
-    # before it can complete the OAuth flow. There is no way to automate
-    # that in advance — add them as you onboard each platform.
+    # NOTE: CallbackURLs below is now only relevant to callers that
+    # present the real Cognito client_id directly (no DCR) — the MCP
+    # Inspector's default local redirect, mainly. Since the DCR shim
+    # (ADR-0002), a new AI platform is onboarded by adding its callback
+    # to bflow.mcp.proxy.allowed-redirect-uris in application.yml and
+    # redeploying bflow-mcp — NOT by editing this array. Re-run this
+    # script only if bflow-mcp's own public URL changes, or to add a
+    # platform that still needs the pre-DCR, direct-client_id path.
     EXISTING_CLIENT_ID=$(aws cognito-idp list-user-pool-clients \
         --region "$AWS_REGION" \
         --user-pool-id "$COGNITO_USER_POOL_ID" \

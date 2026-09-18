@@ -22,6 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
  * from this document, so it's unaffected by what we publish here
  * (ADR-0009 §5 addendum, same Cognito-vs-MCP friction as
  * {@link OAuthProxyController}).</p>
+ *
+ * <p>{@code registration_endpoint} points at
+ * {@link ClientRegistrationController}, bflow-mcp's own stateless DCR
+ * shim (ADR-0002) — Cognito still has no RFC 7591 endpoint of its own.</p>
  */
 @RestController
 public class AuthorizationServerMetadataController {
@@ -55,6 +59,7 @@ public class AuthorizationServerMetadataController {
                 "issuer", publicBaseUrl,
                 "authorization_endpoint", publicBaseUrl + "/oauth/authorize",
                 "token_endpoint", publicBaseUrl + "/oauth/token",
+                "registration_endpoint", publicBaseUrl + "/oauth/register",
                 "jwks_uri", cognitoIssuerUri + "/.well-known/jwks.json",
                 "response_types_supported", List.of("code"),
                 "grant_types_supported",

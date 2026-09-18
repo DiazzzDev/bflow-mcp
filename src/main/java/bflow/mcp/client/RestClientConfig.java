@@ -31,4 +31,19 @@ public class RestClientConfig {
             @Value("${bflow.api.base-url}") final String baseUrl) {
         return restClientBuilder.baseUrl(baseUrl).build();
     }
+
+    /**
+     * Builds the {@code RestClient} {@code OAuthProxyController} uses to
+     * forward the token exchange to Cognito. No base URL: the proxy
+     * builds Cognito's full URL itself from {@code hosted-ui-domain}.
+     * Split out for the same reason as {@link #bflowApiRestClient} —
+     * so a test can bind a {@code MockRestServiceServer} to it before
+     * the controller ever calls {@code .build()} on the shared builder.
+     * @param restClientBuilder Spring Boot's auto-configured builder.
+     * @return the built client.
+     */
+    @Bean
+    public RestClient oauthProxyRestClient(final RestClient.Builder restClientBuilder) {
+        return restClientBuilder.build();
+    }
 }

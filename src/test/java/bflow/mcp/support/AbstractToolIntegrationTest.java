@@ -17,6 +17,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -52,14 +54,40 @@ import org.springframework.web.client.RestClient;
  * {@code @BeforeEach} or on overriding {@code bflowApiRestClient}
  * directly (both tried, both proved unreliable).</p>
  */
-@SpringBootTest(properties = {
-        "bflow.api.base-url=http://bflow-api-under-test",
-        "bflow.mcp.public-base-url=http://localhost:8081",
-        "bflow.cognito.hosted-ui-domain=example.auth.us-east-1.amazoncognito.com",
-        "spring.security.oauth2.resourceserver.jwt.issuer-uri=https://example.com/dummy"
-})
+@SpringBootTest
 @Import(AbstractToolIntegrationTest.MockServerTestConfig.class)
 public abstract class AbstractToolIntegrationTest {
+
+    /**
+     * Registers test config via {@code @DynamicPropertySource} instead
+     * of {@code @SpringBootTest(properties = ...)} — the latter proved
+     * unreliable against these specific keys in practice (a real
+     * {@code COGNITO_APP_CLIENT_ID} in the host environment won out
+     * over the string-literal test property for reasons not fully
+     * root-caused). {@code @DynamicPropertySource} is Spring's
+     * documented highest-precedence property source, registered
+     * directly against the environment right before context refresh —
+     * nothing, including OS environment variables however they get
+     * into the test JVM, can outrank it.
+     * @param registry Spring's property registry for this mechanism.
+     */
+    @DynamicPropertySource
+    static void dcrShimTestProperties(final DynamicPropertyRegistry registry) {
+        registry.add("bflow.api.base-url", () -> "http://bflow-api-under-test");
+        registry.add("bflow.mcp.public-base-url", () -> "http://localhost:8081");
+        registry.add("bflow.cognito.hosted-ui-domain",
+                () -> "example.auth.us-east-1.amazoncognito.com");
+        registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri",
+                () -> "https://example.com/dummy");
+        // Required by ProxyTokenCodec/RedirectUriAllowlist/OAuthProxyController
+        // (DCR shim, ADR-0002) — every Spring context load needs these,
+        // not just DCR-specific tests, since the beans are wired at startup.
+        registry.add("bflow.mcp.proxy.signing-secret",
+                () -> "test-signing-secret-at-least-32-bytes-long");
+        registry.add("bflow.mcp.proxy.allowed-redirect-uris",
+                () -> "http://127.0.0.1:6274/oauth/callback,https://claude.ai/api/mcp/auth_callback");
+        registry.add("bflow.cognito.app-client-id", () -> "test-real-cognito-app-client-id");
+    }
 
     /** Prevents the real Nimbus JWT decoder from being built at startup. */
     @MockitoBean

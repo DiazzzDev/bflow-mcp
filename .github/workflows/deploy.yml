@@ -18,8 +18,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  security:
+    name: Security checks
+    uses: ./.github/workflows/security.yml
+
   validate-environment:
     name: Validate deployment environment
+    needs: security
     runs-on: ubuntu-latest
 
     environment:
@@ -49,8 +54,11 @@ jobs:
           ECS_SECURITY_GROUP: ${{ vars.ECS_SECURITY_GROUP }}
           COGNITO_ISSUER_URI: ${{ vars.COGNITO_ISSUER_URI }}
           COGNITO_HOSTED_UI_DOMAIN: ${{ vars.COGNITO_HOSTED_UI_DOMAIN }}
+          COGNITO_APP_CLIENT_ID: ${{ vars.COGNITO_APP_CLIENT_ID }}
           BFLOW_API_BASE_URL: ${{ vars.BFLOW_API_BASE_URL }}
           BFLOW_MCP_PUBLIC_BASE_URL: ${{ vars.BFLOW_MCP_PUBLIC_BASE_URL }}
+          BFLOW_MCP_PROXY_SIGNING_SECRET: ${{ secrets.BFLOW_MCP_PROXY_SIGNING_SECRET }}
+          BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS: ${{ vars.BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS }}
         run: |
           set -euo pipefail
 
@@ -74,8 +82,11 @@ jobs:
             ECS_SECURITY_GROUP
             COGNITO_ISSUER_URI
             COGNITO_HOSTED_UI_DOMAIN
+            COGNITO_APP_CLIENT_ID
             BFLOW_API_BASE_URL
             BFLOW_MCP_PUBLIC_BASE_URL
+            BFLOW_MCP_PROXY_SIGNING_SECRET
+            BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS
           )
 
           for var in "${required[@]}"; do
@@ -106,6 +117,44 @@ jobs:
           # domain and a custom domain (e.g. a future auth.bflow-studio.com).
           if [[ ! "$COGNITO_HOSTED_UI_DOMAIN" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
             echo "::error::COGNITO_HOSTED_UI_DOMAIN does not look like a valid domain."
+            exit 1
+          fi
+
+      - name: Validate Cognito App Client id format
+        env:
+          COGNITO_APP_CLIENT_ID: ${{ vars.COGNITO_APP_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$COGNITO_APP_CLIENT_ID" =~ ^[a-z0-9]{26}$ ]]; then
+            echo "::error::COGNITO_APP_CLIENT_ID does not look like a Cognito client id (expected 26 lowercase alphanumeric chars)."
+            exit 1
+          fi
+
+      - name: Validate DCR allowed redirect URIs format
+        env:
+          BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS: ${{ vars.BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS }}
+        run: |
+          set -euo pipefail
+
+          IFS=',' read -ra URIS <<< "$BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS"
+          for uri in "${URIS[@]}"; do
+            if [[ ! "$uri" =~ ^https?://[^[:space:],]+$ ]]; then
+              echo "::error::BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS entry '$uri' does not look like a URI (or has stray whitespace)."
+              exit 1
+            fi
+          done
+
+      - name: Validate DCR proxy signing secret length
+        env:
+          BFLOW_MCP_PROXY_SIGNING_SECRET: ${{ secrets.BFLOW_MCP_PROXY_SIGNING_SECRET }}
+        run: |
+          set -euo pipefail
+
+          # HS256 (ProxyTokenCodec) needs at least 256 bits — 32 bytes.
+          # Never echo the secret itself, only its length.
+          if [ "${#BFLOW_MCP_PROXY_SIGNING_SECRET}" -lt 32 ]; then
+            echo "::error::BFLOW_MCP_PROXY_SIGNING_SECRET is shorter than 32 bytes."
             exit 1
           fi
 
@@ -264,8 +313,11 @@ jobs:
           CLOUDWATCH_MCP_LOG_GROUP: ${{ vars.CLOUDWATCH_MCP_LOG_GROUP }}
           COGNITO_ISSUER_URI: ${{ vars.COGNITO_ISSUER_URI }}
           COGNITO_HOSTED_UI_DOMAIN: ${{ vars.COGNITO_HOSTED_UI_DOMAIN }}
+          COGNITO_APP_CLIENT_ID: ${{ vars.COGNITO_APP_CLIENT_ID }}
           BFLOW_API_BASE_URL: ${{ vars.BFLOW_API_BASE_URL }}
           BFLOW_MCP_PUBLIC_BASE_URL: ${{ vars.BFLOW_MCP_PUBLIC_BASE_URL }}
+          BFLOW_MCP_PROXY_SIGNING_SECRET: ${{ secrets.BFLOW_MCP_PROXY_SIGNING_SECRET }}
+          BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS: ${{ vars.BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS }}
         run: |
           envsubst < ecs/task-definition.template.json > ecs/task-definition.json
 

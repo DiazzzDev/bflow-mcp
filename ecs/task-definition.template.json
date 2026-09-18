@@ -22,8 +22,11 @@
         { "name": "SPRING_PROFILES_ACTIVE", "value": "prod" },
         { "name": "COGNITO_ISSUER_URI", "value": "${COGNITO_ISSUER_URI}" },
         { "name": "COGNITO_HOSTED_UI_DOMAIN", "value": "${COGNITO_HOSTED_UI_DOMAIN}" },
+        { "name": "COGNITO_APP_CLIENT_ID", "value": "${COGNITO_APP_CLIENT_ID}" },
         { "name": "BFLOW_API_BASE_URL", "value": "${BFLOW_API_BASE_URL}" },
-        { "name": "BFLOW_MCP_PUBLIC_BASE_URL", "value": "${BFLOW_MCP_PUBLIC_BASE_URL}" }
+        { "name": "BFLOW_MCP_PUBLIC_BASE_URL", "value": "${BFLOW_MCP_PUBLIC_BASE_URL}" },
+        { "name": "BFLOW_MCP_PROXY_SIGNING_SECRET", "value": "${BFLOW_MCP_PROXY_SIGNING_SECRET}" },
+        { "name": "BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS", "value": "${BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS}" }
       ],
 
       "logConfiguration": {
