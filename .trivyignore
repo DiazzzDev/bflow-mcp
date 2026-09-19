@@ -1,0 +1,8 @@
+# ============================================================================
+# BFlow MCP - Trivy Ignore List
+#
+# Temporary ignores for vulnerabilities reported in the base image/tooling.
+# Review and remove these entries when the base image is updated.
+# ============================================================================
+
+CVE-2026-35568
