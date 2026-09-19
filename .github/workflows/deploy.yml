@@ -126,8 +126,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ ! "$COGNITO_APP_CLIENT_ID" =~ ^[a-z0-9]{26}$ ]]; then
-            echo "::error::COGNITO_APP_CLIENT_ID does not look like a Cognito client id (expected 26 lowercase alphanumeric chars)."
+          # AWS doesn't document a fixed length for Cognito App Client
+          # ids — 25-26 lowercase alphanumeric chars is what's actually
+          # been observed (an earlier {26} exact-length check rejected
+          # a real, valid 25-char id). Charset + a sane length range,
+          # not an exact count.
+          if [[ ! "$COGNITO_APP_CLIENT_ID" =~ ^[a-z0-9]{20,32}$ ]]; then
+            echo "::error::COGNITO_APP_CLIENT_ID does not look like a Cognito client id (expected 20-32 lowercase alphanumeric chars)."
             exit 1
           fi
 
