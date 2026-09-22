@@ -38,6 +38,21 @@ import bflow.mcp.security.RequiresScope;
 @Component
 public class CreateTransactionTool {
 
+    /**
+     * Value sent for BFlow's {@code source} field, which is {@code NOT
+     * NULL} at the database level ({@code incomes}/{@code expenses})
+     * but was — until this fix — never populated here, since
+     * {@code BaseTransactionRequest} on the BFlow side doesn't mark it
+     * required and so let a missing value pass validation, only to
+     * fail as an opaque {@code 409 CONFLICT} ("violates a database
+     * constraint") once Hibernate tried the insert. BFlow's own
+     * {@code source} javadoc documents the convention this value
+     * follows: {@code manual, receipt, voice, import, prediction} —
+     * {@code agent} extends that same convention for entries an AI
+     * assistant creates on the user's behalf through this tool.
+     */
+    private static final String TRANSACTION_SOURCE = "agent";
+
     /** Client used to call the real BFlow API. */
     private final BflowApiClient bflowApiClient;
 
@@ -115,6 +130,7 @@ public class CreateTransactionTool {
         body.put("walletId", walletId);
         body.put("categoryId", categoryId);
         body.put("recurring", false);
+        body.put("source", TRANSACTION_SOURCE);
 
         String path;
         if ("EXPENSE".equalsIgnoreCase(type)) {

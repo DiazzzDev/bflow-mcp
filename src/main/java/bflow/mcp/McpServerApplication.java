@@ -12,7 +12,17 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * is being an HTTPS client of its public API (ADR-0009, ADR-0010).</p>
  */
 @SpringBootApplication
-public class McpServerApplication {
+public final class McpServerApplication {
+
+    /**
+     * Private — this class only exposes {@code main} and the implicit
+     * class reference {@code SpringApplication.run} scans from, so
+     * Checkstyle's {@code HideUtilityClassConstructor} check requires
+     * hiding the default public constructor. Spring never needs to
+     * instantiate this class itself.
+     */
+    private McpServerApplication() {
+    }
 
     /**
      * Boots the application.
