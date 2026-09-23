@@ -30,6 +30,40 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class AuthorizationServerMetadataController {
 
+    /**
+     * Every scope an MCP client can request, in the exact
+     * {@code <resourceServerId>/<ScopeName>} form
+     * {@link RequiresScope} checks against — plus the standard OIDC
+     * {@code openid} scope. MUST be kept in sync by hand with the
+     * Cognito resource server's own scope catalog
+     * ({@code infra/17-mcp-cognito-client.sh}'s {@code SCOPES_JSON}
+     * and {@code ALLOWED_SCOPES}): Cognito will happily grant any of
+     * these once a client asks, but nothing here forces a client to
+     * ask for a scope it doesn't know exists.
+     *
+     * <p>This list is RFC 8414's {@code scopes_supported} — an
+     * OPTIONAL field the spec doesn't require, but that's exactly the
+     * gap that let this go unnoticed: without it, an MCP client has no
+     * way to discover a scope like {@code categories.read} exists, so
+     * it never requests it, Cognito's consent screen never offers it,
+     * and the resulting token silently lacks it — surfacing later as
+     * an opaque {@code SCOPE_DENIED} on whichever tool needed it,
+     * with no indication the fix is here rather than in Cognito or in
+     * the failing tool itself.</p>
+     */
+    private static final List<String> SCOPES_SUPPORTED = List.of(
+            "openid",
+            "bflow-mcp/wallets.read",
+            "bflow-mcp/transactions.read",
+            "bflow-mcp/transactions.write",
+            "bflow-mcp/budgets.read",
+            "bflow-mcp/budgets.write",
+            "bflow-mcp/recurring.read",
+            "bflow-mcp/recurring.write",
+            "bflow-mcp/dashboard.read",
+            "bflow-mcp/categories.read"
+    );
+
     /** This instance's own public URL — also the published {@code issuer}. */
     private final String publicBaseUrl;
 
@@ -65,7 +99,8 @@ public class AuthorizationServerMetadataController {
                 "grant_types_supported",
                         List.of("authorization_code", "refresh_token"),
                 "code_challenge_methods_supported", List.of("S256"),
-                "token_endpoint_auth_methods_supported", List.of("none")
+                "token_endpoint_auth_methods_supported", List.of("none"),
+                "scopes_supported", SCOPES_SUPPORTED
         );
     }
 }
