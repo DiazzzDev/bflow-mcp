@@ -6,3 +6,9 @@
 # ============================================================================
 
 CVE-2026-35568
+
+# pebble (base image) stdlib Go 1.27.1: pendiente de rebuild upstream. Revisar antes de 2026-11-06.
+CVE-2026-111943
+CVE-2026-78667
+CVE-2026-78669
+CVE-2026-97031
