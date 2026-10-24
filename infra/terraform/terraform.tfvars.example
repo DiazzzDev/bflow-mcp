@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars (ignored by Git). No credentials in here.
+# Verify every name against the live account before the first plan:
+#   aws lambda list-functions, aws iam list-roles, aws secretsmanager list-secrets
+aws_region = "us-east-1"
+
+# Shared with BFlow-Financial-Engine (read-only lookups).
+shared_ecs_cluster_name        = "bflow-cluster"
+shared_ecs_security_group_name = "bflow-ecs-sg"
+shared_public_subnet_names     = ["bflow-public-a", "bflow-public-b"]
+
+github_owner       = "DiazzzDev"
+github_repository  = "bflow-mcp"
+github_environment = "production"
+
+# Opt-in resources: enable after importing the existing ones (see README.md).
+cognito_user_pool_id     = "us-east-1_M6tN3H360"
+cognito_hosted_ui_domain = "us-east-1m6tn3h360.auth.us-east-1.amazoncognito.com"
+mcp_public_base_url      = "https://mcp.bflow-studio.com" # must equal BFLOW_MCP_PUBLIC_BASE_URL
+# manage_cognito         = true
+# dns_sync_enabled       = true # requires the monolith's dns_sync_enabled = true
+# dns_sync_zip_path      = "/path/to/BFlow-Financial-Engine/infra/dns-sync/.build/lambda_function.zip"
+
+# Grants xray:PutTraceSegments to the task role (agent is enabled in deploy.yml).
+# otel_traces_enabled    = true
+
+ecr_lifecycle_max_images = null # opt in deliberately
+cognito_app_client_id = null
