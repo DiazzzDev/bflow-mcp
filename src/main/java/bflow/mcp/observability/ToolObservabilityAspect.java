@@ -7,7 +7,9 @@ import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Role;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,6 +38,7 @@ import org.slf4j.MDC;
  */
 @Aspect
 @Configuration
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class ToolObservabilityAspect {
 
     /** Structured-ish log line, one per tool call. */
@@ -51,6 +54,7 @@ public class ToolObservabilityAspect {
      * @return the advisor Spring registers against matching beans.
      */
     @Bean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public DefaultPointcutAdvisor toolObservabilityAdvisor() {
         AnnotationMatchingPointcut pointcut =
                 new AnnotationMatchingPointcut(null, Tool.class);

@@ -27,6 +27,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
  */
 @Aspect
 @Configuration
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class RequiresScopeAspect {
 
     /** Advisor precedence: must run after (be wrapped by)

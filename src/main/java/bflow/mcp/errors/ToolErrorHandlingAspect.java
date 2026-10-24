@@ -9,7 +9,9 @@ import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Role;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
@@ -33,6 +35,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 @Aspect
 @Configuration
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class ToolErrorHandlingAspect {
 
     /** Logger — the one place the real exception detail actually goes. */
@@ -51,6 +54,7 @@ public class ToolErrorHandlingAspect {
      * @return the advisor Spring registers against matching beans.
      */
     @Bean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public DefaultPointcutAdvisor toolErrorHandlingAdvisor() {
         AnnotationMatchingPointcut pointcut =
                 new AnnotationMatchingPointcut(null, Tool.class);
