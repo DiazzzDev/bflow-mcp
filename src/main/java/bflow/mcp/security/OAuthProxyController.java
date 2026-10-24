@@ -81,7 +81,7 @@ public class OAuthProxyController {
      * @param publicBaseUrl bflow-mcp's own public URL.
      * @param cognitoAppClientId the real Cognito App Client id
      *      ({@code bflow-mcp-agent-client}, provisioned by
-     *      {@code infra/17-mcp-cognito-client.sh}).
+     *      {@code infra/terraform/cognito.tf}).
      * @param tokenCodec signs/verifies this proxy's own JWTs.
      * @param allowlist the redirect URIs {@link #authorize} will accept,
      *      re-checked here even though {@link ClientRegistrationController}
@@ -273,8 +273,8 @@ public class OAuthProxyController {
 
     /**
      * bflow-mcp's own callback URL, as registered in Cognito's App
-     * Client ({@code infra/17-mcp-cognito-client.sh}'s
-     * {@code CALLBACK_URLS}) — the single fixed {@code redirect_uri}
+     * Client ({@code infra/terraform/variables.tf}'s
+     * {@code cognito_extra_callback_urls}) — the single fixed {@code redirect_uri}
      * every {@link #authorize} call now sends to Cognito, regardless of
      * which real platform is behind the DCR {@code client_id}.
      * @return {@code publicBaseUrl + "/oauth/callback"}.

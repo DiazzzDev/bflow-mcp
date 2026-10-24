@@ -1,0 +1,87 @@
+# Copy to imports.local.tf (ignored by Git) and adjust names/ids from AWS CLI
+# discovery. Import blocks record existing resources in state without changing
+# AWS. Run `terraform plan` and apply only when the plan is a no-op or holds
+# intentional drift fixes.
+
+import {
+  to = aws_ecr_repository.mcp
+  id = "bflow-mcp"
+}
+
+import {
+  to = aws_cloudwatch_log_group.mcp
+  id = "/ecs/bflow-mcp"
+}
+
+import {
+  to = aws_iam_role.ecs_execution
+  id = "bflow-mcp-ecs-execution-role"
+}
+
+import {
+  to = aws_iam_role_policy_attachment.ecs_execution_managed
+  id = "bflow-mcp-ecs-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+import {
+  to = aws_iam_role.ecs_task
+  id = "bflow-mcp-ecs-task-role"
+}
+
+import {
+  to = aws_iam_role.github_actions
+  id = "bflow-mcp-github-actions-role"
+}
+
+import {
+  to = aws_iam_role_policy.github_actions_deploy
+  id = "bflow-mcp-github-actions-role:bflow-mcp-github-deploy-policy"
+}
+
+# --- manage_cognito = true ---
+# import {
+#   to = aws_cognito_resource_server.mcp[0]
+#   id = "<user-pool-id>|bflow-mcp"
+# }
+# import {
+#   to = aws_cognito_user_pool_client.mcp[0]
+#   id = "<user-pool-id>/<client-id>"  # aws cognito-idp list-user-pool-clients
+# }
+# import {
+#   to = aws_cognito_managed_login_branding.mcp[0]
+#   id = "<user-pool-id>,<branding-id>" # describe-managed-login-branding-by-client
+# }
+
+# --- dns_sync_enabled = true ---
+# import {
+#   to = aws_secretsmanager_secret.cloudflare_dns[0]
+#   id = "<secret-arn>"
+# }
+# import {
+#   to = aws_iam_role.dns_sync[0]
+#   id = "bflow-mcp-mcp-dns-sync-lambda-role"
+# }
+# import {
+#   to = aws_iam_role_policy_attachment.dns_sync_basic_execution[0]
+#   id = "bflow-mcp-mcp-dns-sync-lambda-role/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+# }
+# import {
+#   to = aws_iam_role_policy.dns_sync[0]
+#   id = "bflow-mcp-mcp-dns-sync-lambda-role:bflow-mcp-mcp-dns-sync-permissions"
+# }
+# import {
+#   to = aws_cloudwatch_log_group.dns_sync[0]
+#   id = "/aws/lambda/bflow-mcp-mcp-dns-sync"
+# }
+# import {
+#   to = aws_lambda_function.dns_sync[0]
+#   id = "bflow-mcp-mcp-dns-sync"
+# }
+# import {
+#   to = aws_lambda_permission.eventbridge[0]
+#   id = "bflow-mcp-mcp-dns-sync/AllowEventBridgeInvoke"
+# }
+# import {
+#   to = aws_cloudwatch_event_target.dns_sync[0]
+#   id = "bflow-ecs-task-state-change/2"
+# }

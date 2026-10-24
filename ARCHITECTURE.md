@@ -78,7 +78,7 @@ permanent, not temporary.
 ## Adding a new tool
 
 1. Does it read or write? Pick the matching scope from the catalog in
-   `infra/17-mcp-cognito-client.sh` — or add a new one there if none fits.
+   `cognito_scopes` (`infra/terraform/variables.tf`) — or add a new one there if none fits.
 2. Write the tool class in `src/main/java/bflow/mcp/tools/`, following
    any existing one: inject `BflowApiClient`, call the real BFlow
    endpoint, annotate with `@Tool` and `@RequiresScope`.

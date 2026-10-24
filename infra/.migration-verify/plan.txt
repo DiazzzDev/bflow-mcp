@@ -1,0 +1,439 @@
+[0m[1maws_ecr_repository.mcp: Preparing import... [id=bflow-mcp][0m
+[0m[1maws_cloudwatch_log_group.mcp: Preparing import... [id=/ecs/bflow-mcp][0m
+[0m[1mdata.aws_iam_policy_document.ecs_task_trust: Reading...[0m[0m
+[0m[1mdata.aws_iam_openid_connect_provider.github: Reading...[0m[0m
+[0m[1mdata.aws_subnet.shared_public["bflow-public-a"]: Reading...[0m[0m
+[0m[1mdata.aws_subnet.shared_public["bflow-public-b"]: Reading...[0m[0m
+[0m[1mdata.aws_iam_policy_document.dns_sync_trust: Reading...[0m[0m
+[0m[1mdata.aws_security_group.shared_ecs: Reading...[0m[0m
+[0m[1mdata.aws_caller_identity.current: Reading...[0m[0m
+[0m[1mdata.aws_partition.current: Reading...[0m[0m
+[0m[1maws_cloudwatch_log_group.mcp: Refreshing state... [id=/ecs/bflow-mcp][0m
+[0m[1maws_ecr_repository.mcp: Refreshing state... [id=bflow-mcp][0m
+[0m[1mdata.aws_iam_policy_document.dns_sync_trust: Read complete after 0s [id=2690255455][0m
+[0m[1mdata.aws_iam_policy_document.ecs_task_trust: Read complete after 0s [id=1077804475][0m
+[0m[1maws_iam_role.ecs_execution: Preparing import... [id=bflow-mcp-ecs-execution-role][0m
+[0m[1mdata.aws_ecs_cluster.shared: Reading...[0m[0m
+[0m[1mdata.aws_partition.current: Read complete after 0s [id=aws][0m
+[0m[1maws_iam_role.ecs_execution: Refreshing state... [id=bflow-mcp-ecs-execution-role][0m
+[0m[1maws_iam_role.ecs_task: Preparing import... [id=bflow-mcp-ecs-task-role][0m
+[0m[1maws_iam_role.ecs_task: Refreshing state... [id=bflow-mcp-ecs-task-role][0m
+[0m[1mdata.aws_caller_identity.current: Read complete after 0s [id=865614240420][0m
+[0m[1mdata.aws_iam_openid_connect_provider.github: Read complete after 1s [id=arn:aws:iam::865614240420:oidc-provider/token.actions.githubusercontent.com][0m
+[0m[1mdata.aws_iam_policy_document.github_actions_trust: Reading...[0m[0m
+[0m[1mdata.aws_subnet.shared_public["bflow-public-a"]: Read complete after 1s [id=subnet-0aefb190025e52ca5][0m
+[0m[1mdata.aws_security_group.shared_ecs: Read complete after 1s [id=sg-0dece90a78603bec5][0m
+[0m[1mdata.aws_subnet.shared_public["bflow-public-b"]: Read complete after 1s [id=subnet-0ee5ca623cb6e2dfd][0m
+[0m[1mdata.aws_iam_policy_document.github_actions_trust: Read complete after 0s [id=1134430273][0m
+[0m[1maws_iam_role.github_actions: Preparing import... [id=bflow-mcp-github-actions-role][0m
+[0m[1maws_iam_role.github_actions: Refreshing state... [id=bflow-mcp-github-actions-role][0m
+[0m[1maws_iam_role_policy_attachment.ecs_execution_managed: Preparing import... [id=bflow-mcp-ecs-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy][0m
+[0m[1maws_iam_role_policy_attachment.ecs_execution_managed: Refreshing state... [id=bflow-mcp-ecs-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy][0m
+[0m[1mdata.aws_ecs_cluster.shared: Read complete after 1s [id=arn:aws:ecs:us-east-1:865614240420:cluster/bflow-cluster][0m
+[0m[1maws_iam_role_policy.github_actions_deploy: Preparing import... [id=bflow-mcp-github-actions-role:bflow-mcp-github-deploy-policy][0m
+[0m[1maws_iam_role_policy.github_actions_deploy: Refreshing state... [id=bflow-mcp-github-actions-role:bflow-mcp-github-deploy-policy][0m
+
+Terraform will perform the following actions:
+
+[1m  # aws_cloudwatch_log_group.mcp[0m will be imported
+[0m    resource "aws_cloudwatch_log_group" "mcp" {
+        arn                         = "arn:aws:logs:us-east-1:865614240420:log-group:/ecs/bflow-mcp"
+        deletion_protection_enabled = false
+        id                          = "/ecs/bflow-mcp"
+        kms_key_id                  = [90mnull[0m[0m
+        log_group_class             = "STANDARD"
+        name                        = "/ecs/bflow-mcp"
+        name_prefix                 = [90mnull[0m[0m
+        region                      = "us-east-1"
+        retention_in_days           = 14
+        skip_destroy                = false
+        tags                        = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+        tags_all                    = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+    }
+
+[1m  # aws_ecr_repository.mcp[0m will be imported
+[0m    resource "aws_ecr_repository" "mcp" {
+        arn                  = "arn:aws:ecr:us-east-1:865614240420:repository/bflow-mcp"
+        id                   = "bflow-mcp"
+        image_tag_mutability = "IMMUTABLE"
+        name                 = "bflow-mcp"
+        region               = "us-east-1"
+        registry_id          = "865614240420"
+        repository_url       = "865614240420.dkr.ecr.us-east-1.amazonaws.com/bflow-mcp"
+        tags                 = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+        tags_all             = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+
+        encryption_configuration {
+            encryption_type = "AES256"
+            kms_key         = [90mnull[0m[0m
+        }
+
+        image_scanning_configuration {
+            scan_on_push = true
+        }
+    }
+
+[1m  # aws_iam_role.ecs_execution[0m will be imported
+[0m    resource "aws_iam_role" "ecs_execution" {
+        arn                   = "arn:aws:iam::865614240420:role/bflow-mcp-ecs-execution-role"
+        assume_role_policy    = jsonencode(
+            {
+                Statement = [
+                    {
+                        Action    = "sts:AssumeRole"
+                        Effect    = "Allow"
+                        Principal = {
+                            Service = "ecs-tasks.amazonaws.com"
+                        }
+                    },
+                ]
+                Version   = "2012-10-17"
+            }
+        )
+        create_date           = "2026-09-17T01:46:32Z"
+        description           = [90mnull[0m[0m
+        force_detach_policies = false
+        id                    = "bflow-mcp-ecs-execution-role"
+        managed_policy_arns   = [
+            "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+        ]
+        max_session_duration  = 3600
+        name                  = "bflow-mcp-ecs-execution-role"
+        name_prefix           = [90mnull[0m[0m
+        path                  = "/"
+        permissions_boundary  = [90mnull[0m[0m
+        tags                  = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+        tags_all              = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+        unique_id             = "AROA4TCVBDKSF4YLAZPPH"
+    }
+
+[1m  # aws_iam_role.ecs_task[0m will be imported
+[0m    resource "aws_iam_role" "ecs_task" {
+        arn                   = "arn:aws:iam::865614240420:role/bflow-mcp-ecs-task-role"
+        assume_role_policy    = jsonencode(
+            {
+                Statement = [
+                    {
+                        Action    = "sts:AssumeRole"
+                        Effect    = "Allow"
+                        Principal = {
+                            Service = "ecs-tasks.amazonaws.com"
+                        }
+                    },
+                ]
+                Version   = "2012-10-17"
+            }
+        )
+        create_date           = "2026-09-17T01:46:36Z"
+        description           = [90mnull[0m[0m
+        force_detach_policies = false
+        id                    = "bflow-mcp-ecs-task-role"
+        managed_policy_arns   = []
+        max_session_duration  = 3600
+        name                  = "bflow-mcp-ecs-task-role"
+        name_prefix           = [90mnull[0m[0m
+        path                  = "/"
+        permissions_boundary  = [90mnull[0m[0m
+        tags                  = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+        tags_all              = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+        unique_id             = "AROA4TCVBDKSEVAQ5LYNM"
+    }
+
+[1m  # aws_iam_role.github_actions[0m will be imported
+[0m    resource "aws_iam_role" "github_actions" {
+        arn                   = "arn:aws:iam::865614240420:role/bflow-mcp-github-actions-role"
+        assume_role_policy    = jsonencode(
+            {
+                Statement = [
+                    {
+                        Action    = "sts:AssumeRoleWithWebIdentity"
+                        Condition = {
+                            StringEquals = {
+                                "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+                                "token.actions.githubusercontent.com:sub" = "repo:DiazzzDev@174159480/bflow-mcp@1368671239:environment:production"
+                            }
+                        }
+                        Effect    = "Allow"
+                        Principal = {
+                            Federated = "arn:aws:iam::865614240420:oidc-provider/token.actions.githubusercontent.com"
+                        }
+                    },
+                ]
+                Version   = "2012-10-17"
+            }
+        )
+        create_date           = "2026-09-17T01:47:19Z"
+        description           = [90mnull[0m[0m
+        force_detach_policies = false
+        id                    = "bflow-mcp-github-actions-role"
+        managed_policy_arns   = []
+        max_session_duration  = 3600
+        name                  = "bflow-mcp-github-actions-role"
+        name_prefix           = [90mnull[0m[0m
+        path                  = "/"
+        permissions_boundary  = [90mnull[0m[0m
+        tags                  = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+        tags_all              = {
+            "Environment" = "production"
+            "ManagedBy"   = "github-actions"
+            "Project"     = "bflow-mcp"
+        }
+        unique_id             = "AROA4TCVBDKSN4OOU7SD7"
+
+        inline_policy {
+            name   = "bflow-mcp-github-deploy-policy"
+            policy = jsonencode(
+                {
+                    Statement = [
+                        {
+                            Action   = [
+                                "ecr:GetAuthorizationToken",
+                            ]
+                            Effect   = "Allow"
+                            Resource = "*"
+                            Sid      = "ECRAuth"
+                        },
+                        {
+                            Action   = [
+                                "ecr:BatchCheckLayerAvailability",
+                                "ecr:BatchGetImage",
+                                "ecr:CompleteLayerUpload",
+                                "ecr:DescribeRepositories",
+                                "ecr:GetDownloadUrlForLayer",
+                                "ecr:InitiateLayerUpload",
+                                "ecr:PutImage",
+                                "ecr:UploadLayerPart",
+                            ]
+                            Effect   = "Allow"
+                            Resource = "arn:aws:ecr:us-east-1:865614240420:repository/bflow-mcp"
+                            Sid      = "ECRPushAndValidate"
+                        },
+                        {
+                            Action   = [
+                                "ecs:RegisterTaskDefinition",
+                                "ecs:DescribeTaskDefinition",
+                                "ecs:DescribeClusters",
+                                "ecs:DescribeServices",
+                                "ecs:CreateService",
+                                "ecs:UpdateService",
+                                "ecs:ListTasks",
+                                "ecs:DescribeTasks",
+                                "ecs:TagResource",
+                            ]
+                            Effect   = "Allow"
+                            Resource = "*"
+                            Sid      = "ECSDeploy"
+                        },
+                        {
+                            Action   = [
+                                "ec2:DescribeSubnets",
+                                "ec2:DescribeSecurityGroups",
+                                "ec2:DescribeNetworkInterfaces",
+                            ]
+                            Effect   = "Allow"
+                            Resource = "*"
+                            Sid      = "EC2NetworkingValidate"
+                        },
+                        {
+                            Action   = [
+                                "logs:DescribeLogGroups",
+                            ]
+                            Effect   = "Allow"
+                            Resource = "*"
+                            Sid      = "CloudWatchValidate"
+                        },
+                        {
+                            Action   = [
+                                "iam:GetRole",
+                                "iam:PassRole",
+                            ]
+                            Effect   = "Allow"
+                            Resource = [
+                                "arn:aws:iam::865614240420:role/bflow-mcp-ecs-execution-role",
+                                "arn:aws:iam::865614240420:role/bflow-mcp-ecs-task-role",
+                            ]
+                            Sid      = "IAMValidateAndPass"
+                        },
+                        {
+                            Action   = [
+                                "iam:SimulatePrincipalPolicy",
+                                "iam:GetContextKeysForPrincipalPolicy",
+                            ]
+                            Effect   = "Allow"
+                            Resource = "arn:aws:iam::865614240420:role/bflow-mcp-github-actions-role"
+                            Sid      = "IAMSelfPermissionSimulation"
+                        },
+                    ]
+                    Version   = "2012-10-17"
+                }
+            )
+        }
+    }
+
+[1m  # aws_iam_role_policy.github_actions_deploy[0m will be imported
+[0m    resource "aws_iam_role_policy" "github_actions_deploy" {
+        id          = "bflow-mcp-github-actions-role:bflow-mcp-github-deploy-policy"
+        name        = "bflow-mcp-github-deploy-policy"
+        name_prefix = [90mnull[0m[0m
+        policy      = jsonencode(
+            {
+                Statement = [
+                    {
+                        Action   = [
+                            "ecr:GetAuthorizationToken",
+                        ]
+                        Effect   = "Allow"
+                        Resource = "*"
+                        Sid      = "ECRAuth"
+                    },
+                    {
+                        Action   = [
+                            "ecr:BatchCheckLayerAvailability",
+                            "ecr:BatchGetImage",
+                            "ecr:CompleteLayerUpload",
+                            "ecr:DescribeRepositories",
+                            "ecr:GetDownloadUrlForLayer",
+                            "ecr:InitiateLayerUpload",
+                            "ecr:PutImage",
+                            "ecr:UploadLayerPart",
+                        ]
+                        Effect   = "Allow"
+                        Resource = "arn:aws:ecr:us-east-1:865614240420:repository/bflow-mcp"
+                        Sid      = "ECRPushAndValidate"
+                    },
+                    {
+                        Action   = [
+                            "ecs:RegisterTaskDefinition",
+                            "ecs:DescribeTaskDefinition",
+                            "ecs:DescribeClusters",
+                            "ecs:DescribeServices",
+                            "ecs:CreateService",
+                            "ecs:UpdateService",
+                            "ecs:ListTasks",
+                            "ecs:DescribeTasks",
+                            "ecs:TagResource",
+                        ]
+                        Effect   = "Allow"
+                        Resource = "*"
+                        Sid      = "ECSDeploy"
+                    },
+                    {
+                        Action   = [
+                            "ec2:DescribeSubnets",
+                            "ec2:DescribeSecurityGroups",
+                            "ec2:DescribeNetworkInterfaces",
+                        ]
+                        Effect   = "Allow"
+                        Resource = "*"
+                        Sid      = "EC2NetworkingValidate"
+                    },
+                    {
+                        Action   = [
+                            "logs:DescribeLogGroups",
+                        ]
+                        Effect   = "Allow"
+                        Resource = "*"
+                        Sid      = "CloudWatchValidate"
+                    },
+                    {
+                        Action   = [
+                            "iam:GetRole",
+                            "iam:PassRole",
+                        ]
+                        Effect   = "Allow"
+                        Resource = [
+                            "arn:aws:iam::865614240420:role/bflow-mcp-ecs-execution-role",
+                            "arn:aws:iam::865614240420:role/bflow-mcp-ecs-task-role",
+                        ]
+                        Sid      = "IAMValidateAndPass"
+                    },
+                    {
+                        Action   = [
+                            "iam:SimulatePrincipalPolicy",
+                            "iam:GetContextKeysForPrincipalPolicy",
+                        ]
+                        Effect   = "Allow"
+                        Resource = "arn:aws:iam::865614240420:role/bflow-mcp-github-actions-role"
+                        Sid      = "IAMSelfPermissionSimulation"
+                    },
+                ]
+                Version   = "2012-10-17"
+            }
+        )
+        role        = "bflow-mcp-github-actions-role"
+    }
+
+[1m  # aws_iam_role_policy_attachment.ecs_execution_managed[0m will be imported
+[0m    resource "aws_iam_role_policy_attachment" "ecs_execution_managed" {
+        id         = "bflow-mcp-ecs-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        role       = "bflow-mcp-ecs-execution-role"
+    }
+
+[1mPlan:[0m [0m7 to import, 0 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  [32m+[0m[0m deployment_variables    = {
+      [32m+[0m[0m AWS_REGION                 = "us-east-1"
+      [32m+[0m[0m CLOUDWATCH_MCP_LOG_GROUP   = "/ecs/bflow-mcp"
+      [32m+[0m[0m COGNITO_APP_CLIENT_ID      = [90mnull[0m[0m
+      [32m+[0m[0m COGNITO_HOSTED_UI_DOMAIN   = "us-east-1m6tn3h360.auth.us-east-1.amazoncognito.com"
+      [32m+[0m[0m COGNITO_ISSUER_URI         = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_M6tN3H360"
+      [32m+[0m[0m ECR_REPOSITORY             = "865614240420.dkr.ecr.us-east-1.amazonaws.com/bflow-mcp"
+      [32m+[0m[0m ECS_CLUSTER_NAME           = "bflow-cluster"
+      [32m+[0m[0m ECS_CONTAINER_NAME         = "bflow-mcp"
+      [32m+[0m[0m ECS_MCP_EXECUTION_ROLE_ARN = "arn:aws:iam::865614240420:role/bflow-mcp-ecs-execution-role"
+      [32m+[0m[0m ECS_MCP_TASK_ROLE_ARN      = "arn:aws:iam::865614240420:role/bflow-mcp-ecs-task-role"
+      [32m+[0m[0m ECS_PUBLIC_SUBNET_1        = "subnet-0aefb190025e52ca5"
+      [32m+[0m[0m ECS_PUBLIC_SUBNET_2        = "subnet-0ee5ca623cb6e2dfd"
+      [32m+[0m[0m ECS_SECURITY_GROUP         = "sg-0dece90a78603bec5"
+      [32m+[0m[0m ECS_SERVICE_NAME           = "bflow-mcp"
+      [32m+[0m[0m ECS_TASK_FAMILY            = "bflow-mcp"
+    }
+  [32m+[0m[0m github_actions_role_arn = "arn:aws:iam::865614240420:role/bflow-mcp-github-actions-role"
+
+You can apply this plan to save these new output values to the Terraform
+state, without changing any real infrastructure.
+[90m
+─────────────────────────────────────────────────────────────────────────────[0m
+
+Saved the plan to: /workspaces/bflow-mcp/infra/.migration-verify/tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "/workspaces/bflow-mcp/infra/.migration-verify/tfplan"

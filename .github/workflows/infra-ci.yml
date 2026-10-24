@@ -1,0 +1,55 @@
+name: bflow-mcp Infra CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "infra/**"
+      - "ecs/**"
+      - ".github/workflows/deploy.yml"
+      - ".github/workflows/infra-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-infra:
+    name: Validate Terraform and deployment templates
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Terraform format
+        run: terraform -chdir=infra/terraform fmt -check -recursive
+
+      - name: Terraform validation
+        run: |
+          terraform -chdir=infra/terraform init -backend=false
+          terraform -chdir=infra/terraform validate
+
+      - name: Validate ECS templates are valid JSON
+        run: |
+          jq empty ecs/task-definition.template.json
+          jq empty ecs/network-config.template.json
+
+      - name: Guard rail — shared network stays owned by the monolith
+        run: |
+          # bflow-mcp shares the monolith's cluster, subnets and security group.
+          # Declaring any of them here would make the two stacks fight over
+          # the same resources on every apply.
+          if grep -rnE 'resource "aws_(security_group|vpc_security_group_[a-z_]+|vpc|subnet|internet_gateway|route_table[a-z_]*|ecs_cluster|iam_openid_connect_provider)"' \
+              infra/terraform --include='*.tf'; then
+            echo "::error::Shared resources must be read with data sources, not declared (they belong to BFlow-Financial-Engine)."
+            exit 1
+          fi
+
+      - name: Guard rail — opt-in resources stay opt-in
+        run: |
+          grep -A3 'variable "manage_cognito"' infra/terraform/variables.tf | grep -q 'default     = false'
+          grep -A3 'variable "dns_sync_enabled"' infra/terraform/variables.tf | grep -q 'default     = false'

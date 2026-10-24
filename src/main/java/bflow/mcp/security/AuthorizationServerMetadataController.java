@@ -36,7 +36,7 @@ public class AuthorizationServerMetadataController {
      * {@link RequiresScope} checks against — plus the standard OIDC
      * {@code openid} scope. MUST be kept in sync by hand with the
      * Cognito resource server's own scope catalog
-     * ({@code infra/17-mcp-cognito-client.sh}'s {@code SCOPES_JSON}
+     * ({@code infra/terraform/variables.tf}'s {@code cognito_scopes}
      * and {@code ALLOWED_SCOPES}): Cognito will happily grant any of
      * these once a client asks, but nothing here forces a client to
      * ask for a scope it doesn't know exists.

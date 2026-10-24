@@ -15,3 +15,9 @@ target/
 HELP.md
 
 infra/dns-sync/.build/
+# Terraform (bflow-mcp infra)
+infra/terraform/terraform.tfvars
+infra/terraform/imports.local.tf
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/.terraform/

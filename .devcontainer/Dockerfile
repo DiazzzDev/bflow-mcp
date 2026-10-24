@@ -12,6 +12,22 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/aws
     && /tmp/aws/install \
     && rm -rf /tmp/aws /tmp/awscliv2.zip
 
+# Terraform is installed in the image so every developer uses the same CLI as
+# BFlow-Financial-Engine. HashiCorp's signed Debian repository also keeps
+# upgrades reproducible.
+# NOTE: a devcontainer feature adds a yarn apt repo (dl.yarnpkg.com) without a
+# valid GPG key, which makes `apt-get update` fail with exit 100. We don't need
+# yarn, so drop that broken repo file first.
+RUN rm -f /etc/apt/sources.list.d/*yarn* \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates gnupg wget \
+    && wget -qO- https://apt.releases.hashicorp.com/gpg \
+        | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com bookworm main" \
+        > /etc/apt/sources.list.d/hashicorp.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends terraform \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Go (needed to build the dns-sync Lambda in infra/dns-sync)
 ARG GO_VERSION=1.23.4

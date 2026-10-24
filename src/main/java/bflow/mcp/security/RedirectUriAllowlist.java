@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
  * <p>Deliberately an exact-match list, not a domain or wildcard rule.
  * Every platform bflow-mcp has ever connected to — MCP Inspector,
  * ChatGPT, Claude.ai — uses one fixed, documented callback URL with no
- * dynamic path or query component (mirrors {@code CALLBACK_URLS} in
- * {@code infra/17-mcp-cognito-client.sh}). A rule like {@code *.claude.ai}
+ * dynamic path or query component (mirrors {@code cognito_extra_callback_urls} in
+ * {@code infra/terraform/variables.tf}). A rule like {@code *.claude.ai}
  * would accept any path under that host, including ones Claude.ai
  * itself never asks for — extra attack surface for zero onboarding
  * benefit, since the real URI is fixed either way. Exact match costs
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
  * <p>Onboarding a new platform is now: add its documented callback URL
  * to {@code bflow.mcp.proxy.allowed-redirect-uris}, redeploy. Cognito's
  * own App Client still only ever sees bflow-mcp's own fixed
- * {@code /oauth/callback} — see {@code infra/17-mcp-cognito-client.sh}'s
+ * {@code /oauth/callback} — see {@code infra/terraform/cognito.tf}'s
  * updated note — so this is the only place a new platform gets added
  * for the DCR path.</p>
  */

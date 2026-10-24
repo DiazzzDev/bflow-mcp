@@ -14,20 +14,18 @@ through the [BFlow](https://github.com/DiazzzDev/BFlow-Financial-Engine) API.
 
 > **Requires a BFlow account.** bflow-mcp doesn't create accounts or
 > store your data — it's a bridge between an AI assistant and the
-> BFlow account https://www.bflow-studio.com/ you already have.
+> [BFlow](https://www.bflow-studio.com/) account you already have.
 
 ## What can you do?
 
 Ask an AI assistant to:
 
-- View your wallets
-- Query transactions
-- Create expenses and income
-- Manage budgets
-- Manage recurring transactions
-- Analyze your financial activity
-- Automate your daily finances
-- Use AI alongside the BFlow platform you already use.
+- See your wallets, categories and budgets
+- Query your transaction history
+- Get a summary of this month's spending
+- Add or correct expenses and income
+- Create budgets
+- Set up recurring transactions (subscriptions, paychecks)
 
 ### Example
 
@@ -56,8 +54,19 @@ exactly as if you'd done it yourself in the app.
 
 ## Quick Start
 
-bflow-mcp isn't published to a public MCP directory yet — for now,
-run it yourself:
+### Hosted
+
+Add this URL as a custom connector in your AI assistant (in Claude, from the
+connectors settings):
+
+```
+https://mcp.bflow-studio.com/mcp
+```
+
+You'll be asked to log in with your BFlow account the first time — the
+same login (including Google) you already use for BFlow.
+
+### Self-hosted
 
 ```bash
 git clone https://github.com/DiazzzDev/bflow-mcp.git
@@ -73,22 +82,34 @@ Then add it as a server in your AI assistant's settings, pointing at:
 http://localhost:8081/mcp
 ```
 
-You'll be asked to log in with your BFlow account the first time — the
-same login (including Google) you already use for BFlow.
-
 ## Available Tools
 
-| Tool | Scope | Status | Description |
-|------|-------|--------|-------------|
-| `listWallets` | `bflow-mcp/wallets.read` | Available | Lists the wallets you own or belong to |
-| Query transactions | `bflow-mcp/transactions.read` | Planned | View your transaction history |
-| Create expense/income | `bflow-mcp/transactions.write` | Planned | Add a new transaction |
-| View budgets | `bflow-mcp/budgets.read` | Planned | Check budget status and spending |
-| Manage budgets | `bflow-mcp/budgets.write` | Planned | Create or update a budget |
-| Manage recurring items | `bflow-mcp/recurring.read`, `bflow-mcp/recurring.write` | Planned | View or manage recurring transactions |
+10 tools, each tied to one permission (scope) that the assistant must be
+granted. Read tools run immediately; write tools always ask you to confirm
+first (see [Security](#security)).
 
-This project is early — one tool is live today, the rest are actively
-being built. Follow the repo for updates.
+### Read
+
+| Tool | Scope | Description |
+|------|-------|-------------|
+| `listWallets` | `bflow-mcp/wallets.read` | Wallets you own or belong to |
+| `listCategories` | `bflow-mcp/categories.read` | Transaction categories with id, name, type, icon and color — used to pick a category when creating transactions or budgets |
+| `listTransactions` | `bflow-mcp/transactions.read` | Your expenses, incomes and transfers across all wallets |
+| `listBudgets` | `bflow-mcp/budgets.read` | Your budgets across all wallets |
+| `listRecurring` | `bflow-mcp/recurring.read` | Scheduled recurring expenses and incomes |
+| `getSpendingSummary` | `bflow-mcp/dashboard.read` | This month's spending summary across all wallets |
+
+### Write (require confirmation)
+
+| Tool | Scope | Description |
+|------|-------|-------------|
+| `createTransaction` | `bflow-mcp/transactions.write` | Adds a one-off expense or income. Safe to retry with an idempotency key |
+| `updateTransaction` | `bflow-mcp/transactions.write` | Replaces an existing expense or income entry |
+| `createBudget` | `bflow-mcp/budgets.write` | Creates a budget for one wallet (daily, weekly or monthly) |
+| `createRecurringTransaction` | `bflow-mcp/recurring.write` | Creates a recurring expense or income schedule; BFlow generates the transactions |
+
+Not available on purpose: money transfers, payments, deletions and anything
+touching your subscription or account settings.
 
 ## Security
 
@@ -98,8 +119,13 @@ being built. Follow the repo for updates.
 - **Scoped by design.** An assistant only gets the specific
   permissions you approve (e.g. "read my wallets") — never blanket
   access to your account.
+- **You confirm every change.** Write tools first return a preview of
+  exactly what would be sent to BFlow; nothing happens until the assistant
+  shows it to you and calls again with your confirmation.
+- **Safe retries.** Creating a transaction accepts an idempotency key, so a
+  retry after an unclear result doesn't duplicate the entry.
 - **Nothing risky, automatically.** Sensitive actions like money
-  transfers are intentionally left out of what an AI assistant can
+  transfers and payments are intentionally left out of what an AI assistant can
   ever do here.
 - **Open source.** The code is public — you (or anyone) can read
   exactly what it does before trusting it with financial data.
@@ -113,6 +139,12 @@ decisions specific to this repo (start with
 if something OAuth-related breaks). The authorization model and
 security boundaries this service implements are documented in
 [`BFlow-Financial-Engine`'s ADR-0009 and ADR-0010](https://github.com/DiazzzDev/BFlow-Financial-Engine/tree/main/docs/adr).
+
+## Infrastructure
+
+AWS resources are managed with Terraform in [`infra/`](./infra/README.md). It
+reads (never modifies) the ECS cluster, subnets and security group owned by
+BFlow-Financial-Engine, and deploys run from `.github/workflows/deploy.yml`.
 
 ---
 

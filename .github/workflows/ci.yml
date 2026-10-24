@@ -1,27 +1,64 @@
-name: bflow-mcp CI
+name: bflow-mcp Infra CI
 
 on:
   pull_request:
-    branches:
-      - "main"
-      - "develop"
+    branches: [main, develop]
+    paths:
+      - "infra/**"
+      - "ecs/**"
+      - "src/main/java/bflow/mcp/security/AuthorizationServerMetadataController.java"
+      - ".github/workflows/deploy.yml"
+      - ".github/workflows/infra-ci.yml"
+
+permissions:
+  contents: read
 
 jobs:
-  test-and-build:
+  validate-infra:
+    name: Validate Terraform and deployment templates
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK
-        uses: actions/setup-java@v5
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'maven'
+          terraform_version: "1.9.8"
 
-      - name: Run code quality
-        run: ./mvnw -B checkstyle:check
+      - name: Terraform format
+        run: terraform -chdir=infra/terraform fmt -check -recursive
 
-      - name: Run tests
-        run: ./mvnw -B clean verify
+      - name: Terraform validation
+        run: |
+          terraform -chdir=infra/terraform init -backend=false
+          terraform -chdir=infra/terraform validate
+
+      - name: Validate ECS templates are valid JSON
+        run: |
+          jq empty ecs/task-definition.template.json
+          jq empty ecs/network-config.template.json
+
+      - name: Guard rail - this stack never owns shared network resources
+        run: |
+          if grep -rnE 'resource "aws_(security_group|security_group_rule|vpc_security_group_ingress_rule|vpc|subnet|ecs_cluster|iam_openid_connect_provider|cloudwatch_event_rule|sns_topic)"' infra/terraform/*.tf; then
+            echo "::error::Shared resources are owned by BFlow-Financial-Engine; use data sources."
+            exit 1
+          fi
+
+      - name: Guard rail - opt-ins default to off
+        run: |
+          for v in manage_cognito dns_sync_enabled otel_traces_enabled; do
+            awk -v v="$v" '$0 ~ "variable \""v"\""{f=1} f && /default/{print; exit}' infra/terraform/variables.tf | grep -q 'false' \
+              || { echo "::error::$v must default to false"; exit 1; }
+          done
+
+      - name: Guard rail - Cognito scopes in Terraform match the Java catalog
+        shell: bash
+        run: |
+          tf=$(awk '/variable "cognito_scopes"/{f=1} f && /default = \{/{g=1;next} g && /^  }/{exit} g{print}' infra/terraform/variables.tf \
+                 | grep -oE '"[a-z]+\.(read|write)"' | tr -d '"' | sed 's#^#bflow-mcp/#' | sort)
+          java=$(grep -oE '"bflow-mcp/[a-z]+\.(read|write)"' \
+                 src/main/java/bflow/mcp/security/AuthorizationServerMetadataController.java | tr -d '"' | sort)
+          diff <(echo "$tf") <(echo "$java") \
+            || { echo "::error::cognito_scopes (variables.tf) and SCOPES_SUPPORTED (Java) drifted."; exit 1; }

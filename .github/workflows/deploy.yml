@@ -221,7 +221,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Same actions as infra/19-github-oidc.sh's verify_permissions,
+          # Same actions as the deploy policy in infra/terraform/github-oidc.tf,
           # simulated the same way: actions scoped to a specific ARN in
           # the policy must be tested against that same ARN, not "*" —
           # otherwise the simulation always reports implicitDeny even
@@ -451,4 +451,4 @@ jobs:
         run: |
           echo "Deployment completed successfully."
           echo "Task definition family: ${{ vars.ECS_TASK_FAMILY }}"
-          echo "DNS sync (infra/16-mcp-dns-sync.sh) is not wired up yet — see that script's known gap before relying on the mcp.bflow-studio.com record."
+          echo "DNS sync is provisioned by infra/terraform (dns_sync_enabled), not by this workflow."

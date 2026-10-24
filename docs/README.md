@@ -55,10 +55,10 @@ bflow-mcp/
 ├── docker-compose.yml     Standalone run (outside the devcontainer)
 ├── ecs/                   ECS Fargate task definition template for this service
 ├── infra/
-│   └── 16-mcp-dns-sync.sh Adds this service to BFlow's existing Cloudflare
-│                          dynamic-DNS Lambda as a second target — depends on
-│                          BFlow-Financial-Engine/infra having been bootstrapped
-│                          first (reuses its dns-sync binary and outputs.env)
+│   └── terraform/         ECR, ECS roles, log group, GitHub OIDC role, Cognito
+│                          client and optional DNS sync. Reads (never creates)
+│                          the cluster, subnets, security group and OIDC provider
+│                          owned by BFlow-Financial-Engine's Terraform
 ├── src/main/java/bflow/mcp/
 │   ├── McpServerApplication.java
 │   ├── client/
@@ -94,7 +94,6 @@ the `bflow-mcp` ECS service. A GitHub Actions workflow mirroring
 written for this repo (not included in this scaffold).
 
 This service shares BFlow's existing ECS cluster, VPC, and security
-group — no new cluster. It only needs its own port (8081) opened on that
-security group and its own Cloudflare DNS record; see
-`infra/16-mcp-dns-sync.sh` and the one-line addition to
-`BFlow-Financial-Engine/infra/bootstrap/05-security-groups.sh`.
+group — no new cluster. Its port (8081) is opened on that security group by the
+monolith's `ecs_ingress_rules`, and its Cloudflare DNS record is kept up
+to date by the optional DNS-sync Lambda; see `infra/README.md`.

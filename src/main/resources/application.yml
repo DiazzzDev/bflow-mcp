@@ -40,7 +40,7 @@ bflow:
       signing-secret: ${BFLOW_MCP_PROXY_SIGNING_SECRET}
       # Comma-separated, exact-match redirect URIs POST /oauth/register
       # is allowed to issue a client_id for (RedirectUriAllowlist).
-      # Mirrors CALLBACK_URLS in infra/17-mcp-cognito-client.sh — add a
+      # Mirrors cognito_extra_callback_urls in infra/terraform/variables.tf — add a
       # platform here, not there, to onboard it going forward.
       allowed-redirect-uris: ${BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS}
   cognito:
@@ -48,5 +48,5 @@ bflow:
     # /oauth2/authorize and /oauth2/token endpoints actually live.
     hosted-ui-domain: ${COGNITO_HOSTED_UI_DOMAIN}
     # The real, static App Client id (bflow-mcp-agent-client) every DCR
-    # client_id token maps to — see infra/17-mcp-cognito-client.sh.
+    # client_id token maps to — see infra/terraform/cognito.tf.
     app-client-id: ${COGNITO_APP_CLIENT_ID}
