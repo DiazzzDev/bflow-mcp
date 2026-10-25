@@ -20,6 +20,6 @@ output "deployment_variables" {
     ECS_SECURITY_GROUP         = data.aws_security_group.shared_ecs.id
     COGNITO_ISSUER_URI         = var.cognito_user_pool_id == null ? null : "https://cognito-idp.${var.aws_region}.amazonaws.com/${var.cognito_user_pool_id}"
     COGNITO_HOSTED_UI_DOMAIN   = var.cognito_hosted_ui_domain
-    COGNITO_APP_CLIENT_ID = var.cognito_app_client_id
+    COGNITO_APP_CLIENT_ID     = var.cognito_app_client_id
   }
 }
