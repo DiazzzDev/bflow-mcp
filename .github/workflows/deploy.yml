@@ -323,6 +323,8 @@ jobs:
           BFLOW_MCP_PUBLIC_BASE_URL: ${{ vars.BFLOW_MCP_PUBLIC_BASE_URL }}
           BFLOW_MCP_PROXY_SIGNING_SECRET: ${{ secrets.BFLOW_MCP_PROXY_SIGNING_SECRET }}
           BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS: ${{ vars.BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS }}
+          # Optional (docs/adr/0004): empty or unset keeps CIMD disabled.
+          BFLOW_MCP_PROXY_CIMD_ALLOWED_CLIENT_IDS: ${{ vars.BFLOW_MCP_PROXY_CIMD_ALLOWED_CLIENT_IDS }}
         run: |
           envsubst < ecs/task-definition.template.json > ecs/task-definition.json
 

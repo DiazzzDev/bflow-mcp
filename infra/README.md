@@ -134,7 +134,9 @@ It cannot see:
   `SCOPES_SUPPORTED` list. `infra-ci.yml` fails the PR if they differ.
 - New AI platforms are onboarded in `BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS`
   (DCR allowlist), not in `cognito_extra_callback_urls`, which only covers
-  clients that present the real Cognito client id.
+  clients that present the real Cognito client id. A platform that identifies
+  itself with a Client ID Metadata Document is also listed, by its `client_id`
+  URL, in `BFLOW_MCP_PROXY_CIMD_ALLOWED_CLIENT_IDS` (see ADR-0004).
 
 ## CI/CD
 

@@ -43,6 +43,11 @@ bflow:
       # Mirrors cognito_extra_callback_urls in infra/terraform/variables.tf — add a
       # platform here, not there, to onboard it going forward.
       allowed-redirect-uris: ${BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS}
+      cimd:
+        # Exact client_id URLs accepted as OAuth Client ID Metadata
+        # Documents (docs/adr/0004). Comma-separated; empty (default)
+        # disables CIMD. DCR keeps working either way.
+        allowed-client-ids: ${BFLOW_MCP_PROXY_CIMD_ALLOWED_CLIENT_IDS:}
   cognito:
     # The Hosted UI domain, NOT the issuer URL — this is where the real
     # /oauth2/authorize and /oauth2/token endpoints actually live.

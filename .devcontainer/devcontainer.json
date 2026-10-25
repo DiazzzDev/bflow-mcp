@@ -3,7 +3,6 @@
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "app",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-	"forwardPorts": [8081],
 	"postCreateCommand": "./mvnw clean install -DskipTests",
 	"customizations": {
 		"vscode": {
