@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -47,6 +49,13 @@ import org.springframework.web.util.UriComponentsBuilder;
  * {@link #callback} unpacks that JWT and does the final redirect back
  * to the caller's real, allowlisted destination.</p>
  *
+ * <p>A {@code client_id} can also be an allowlisted
+ * {@code https://} URL: an OAuth Client ID Metadata Document (CIMD,
+ * ADR-0004). {@link #authorize} then checks the requested
+ * {@code redirect_uri} against the redirect URIs that document
+ * declares (and still against {@link RedirectUriAllowlist}), and
+ * everything after that is identical to the DCR path.</p>
+ *
  * <p>Cognito's real token response (and its {@code iss} claim) still
  * passes through {@link #token} unmodified — this proxy mints no
  * tokens of its own. It signs exactly two kinds of JWT
@@ -55,6 +64,11 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 @RestController
 public class OAuthProxyController {
+
+    private static final Logger LOG = LoggerFactory.getLogger(OAuthProxyController.class);
+
+    /** Longest {@code client_id} written to the log, so a rejected one cannot flood it. */
+    private static final int MAX_LOGGED_CLIENT_ID_LENGTH = 200;
 
     /** Query/form params this proxy substitutes rather than forwards verbatim. */
     private static final Set<String> SUBSTITUTED_PARAMS =
@@ -66,11 +80,13 @@ public class OAuthProxyController {
     /** bflow-mcp's own public URL — used to build the fixed Cognito-facing callback. */
     private final String publicBaseUrl;
 
-    /** The one real, static Cognito App Client id every DCR client_id maps to. */
+    /** The one real, static Cognito App Client id every DCR or CIMD client_id maps to. */
     private final String cognitoAppClientId;
 
     private final ProxyTokenCodec tokenCodec;
     private final RedirectUriAllowlist allowlist;
+    private final CimdClientAllowlist cimdAllowlist;
+    private final CimdMetadataClient cimdClient;
 
     /** Client used to forward the token exchange to Cognito. */
     private final RestClient restClient;
@@ -88,6 +104,10 @@ public class OAuthProxyController {
      *      already checked it once at registration time — a
      *      long-lived {@code client_id} token shouldn't outlive a
      *      platform being removed from config.
+     * @param cimdAllowlist the {@code client_id} URLs accepted as CIMD
+     *      clients; empty means CIMD is off.
+     * @param cimdClient resolves an allowlisted CIMD {@code client_id}
+     *      to the redirect URIs its metadata document declares.
      * @param oauthProxyRestClient the client used to forward the token
      *      exchange to Cognito — {@code RestClientConfig}'s bean, not
      *      built inline, so a test can bind a mock server to it (same
@@ -99,12 +119,16 @@ public class OAuthProxyController {
             @Value("${bflow.cognito.app-client-id}") final String cognitoAppClientId,
             final ProxyTokenCodec tokenCodec,
             final RedirectUriAllowlist allowlist,
+            final CimdClientAllowlist cimdAllowlist,
+            final CimdMetadataClient cimdClient,
             final RestClient oauthProxyRestClient) {
         this.hostedUiDomain = hostedUiDomain;
         this.publicBaseUrl = publicBaseUrl;
         this.cognitoAppClientId = cognitoAppClientId;
         this.tokenCodec = tokenCodec;
         this.allowlist = allowlist;
+        this.cimdAllowlist = cimdAllowlist;
+        this.cimdClient = cimdClient;
         this.restClient = oauthProxyRestClient;
     }
 
@@ -118,23 +142,19 @@ public class OAuthProxyController {
      * @param params every query parameter the client sent.
      * @return a redirect to Cognito's real authorize endpoint.
      * @throws ResponseStatusException 400 if {@code client_id} doesn't
-     *      decode, or {@code redirect_uri} doesn't match the
-     *      registration or isn't currently allowlisted.
+     *      decode (DCR) or isn't an allowlisted, valid CIMD client, or
+     *      {@code redirect_uri} doesn't match the registration or the
+     *      metadata document, or isn't currently allowlisted.
      */
     @GetMapping("/oauth/authorize")
     public RedirectView authorize(@RequestParam final Map<String, String> params) {
-        ProxyTokenCodec.ClientRegistration registration;
-        try {
-            registration = tokenCodec.decodeClientRegistration(params.get("client_id"));
-        } catch (InvalidProxyTokenException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid client_id", e);
-        }
-
+        String clientId = params.get("client_id");
         String requestedRedirectUri = params.get("redirect_uri");
-        if (!registration.redirectUri().equals(requestedRedirectUri)
-                || !allowlist.isAllowed(requestedRedirectUri)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "redirect_uri does not match this client's registration");
+
+        if (CimdClientAllowlist.isCimdClientId(clientId)) {
+            requireValidCimdRedirect(clientId, requestedRedirectUri);
+        } else {
+            requireValidDcrRedirect(clientId, requestedRedirectUri);
         }
 
         String outerState = tokenCodec.encodeCallbackState(requestedRedirectUri, params.get("state"));
@@ -201,8 +221,8 @@ public class OAuthProxyController {
 
     /**
      * Proxies the token exchange: forwards the POST to Cognito's real
-     * token endpoint, with {@code resource} stripped and, for a DCR
-     * client, both {@code client_id} AND {@code redirect_uri} mapped
+     * token endpoint, with {@code resource} stripped and, for a DCR or
+     * allowlisted CIMD client, both {@code client_id} AND {@code redirect_uri} mapped
      * to the fixed values {@link #authorize} actually presented to
      * Cognito. Both have to move together: Cognito ties an
      * authorization code to the exact {@code redirect_uri} used to
@@ -236,7 +256,8 @@ public class OAuthProxyController {
         // (form param iteration order isn't guaranteed to see client_id
         // before redirect_uri).
         String presentedClientId = formParams.getFirst("client_id");
-        boolean isDcrClient = presentedClientId != null && isDcrClientId(presentedClientId);
+        boolean isProxiedClient = presentedClientId != null
+                && (isDcrClientId(presentedClientId) || cimdAllowlist.isAllowed(presentedClientId));
 
         MultiValueMap<String, String> forwarded = new LinkedMultiValueMap<>();
         formParams.forEach((key, values) -> {
@@ -245,10 +266,10 @@ public class OAuthProxyController {
             }
             if ("client_id".equals(key)) {
                 forwarded.put("client_id",
-                        List.of(isDcrClient ? cognitoAppClientId : presentedClientId));
+                        List.of(isProxiedClient ? cognitoAppClientId : presentedClientId));
                 return;
             }
-            if ("redirect_uri".equals(key) && isDcrClient) {
+            if ("redirect_uri".equals(key) && isProxiedClient) {
                 forwarded.put("redirect_uri", List.of(cognitoFacingCallbackUri()));
                 return;
             }
@@ -269,6 +290,66 @@ public class OAuthProxyController {
                             .contentType(MediaType.APPLICATION_JSON)
                             .body(body);
                 });
+    }
+
+    /**
+     * Checks a DCR {@code client_id} token and that the requested
+     * {@code redirect_uri} is the one it was registered with and is
+     * still allowlisted.
+     * @param clientId the {@code client_id} the request presented.
+     * @param requestedRedirectUri the {@code redirect_uri} it asked for.
+     * @throws ResponseStatusException 400 if either check fails.
+     */
+    private void requireValidDcrRedirect(final String clientId, final String requestedRedirectUri) {
+        ProxyTokenCodec.ClientRegistration registration;
+        try {
+            registration = tokenCodec.decodeClientRegistration(clientId);
+        } catch (InvalidProxyTokenException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid client_id", e);
+        }
+
+        if (!registration.redirectUri().equals(requestedRedirectUri)
+                || !allowlist.isAllowed(requestedRedirectUri)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "redirect_uri does not match this client's registration");
+        }
+    }
+
+    /**
+     * Checks an allowlisted CIMD {@code client_id} and that the
+     * requested {@code redirect_uri} is declared by its metadata
+     * document and is also on the proxy's own redirect allowlist.
+     * @param clientId the {@code client_id} URL the request presented.
+     * @param requestedRedirectUri the {@code redirect_uri} it asked for.
+     * @throws ResponseStatusException 400 if the client is rejected or
+     *      the redirect URI does not pass both checks.
+     */
+    private void requireValidCimdRedirect(final String clientId, final String requestedRedirectUri) {
+        Set<String> documentRedirectUris;
+        try {
+            documentRedirectUris = cimdClient.redirectUrisFor(clientId);
+        } catch (InvalidCimdClientException e) {
+            LOG.warn("Rejected CIMD client_id '{}': {}", forLog(clientId), e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid client_id", e);
+        }
+
+        if (!documentRedirectUris.contains(requestedRedirectUri)
+                || !allowlist.isAllowed(requestedRedirectUri)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "redirect_uri does not match this client's metadata");
+        }
+    }
+
+    /**
+     * @param value request-controlled text.
+     * @return it with anything outside printable ASCII replaced and
+     *      its length capped, safe to write to a log line.
+     */
+    private static String forLog(final String value) {
+        String printable = value.replaceAll("[^\\x20-\\x7E]", "?");
+        return printable.length() > MAX_LOGGED_CLIENT_ID_LENGTH
+                ? printable.substring(0, MAX_LOGGED_CLIENT_ID_LENGTH)
+                : printable;
     }
 
     /**

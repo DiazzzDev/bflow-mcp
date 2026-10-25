@@ -26,7 +26,8 @@
         { "name": "BFLOW_API_BASE_URL", "value": "${BFLOW_API_BASE_URL}" },
         { "name": "BFLOW_MCP_PUBLIC_BASE_URL", "value": "${BFLOW_MCP_PUBLIC_BASE_URL}" },
         { "name": "BFLOW_MCP_PROXY_SIGNING_SECRET", "value": "${BFLOW_MCP_PROXY_SIGNING_SECRET}" },
-        { "name": "BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS", "value": "${BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS}" }
+        { "name": "BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS", "value": "${BFLOW_MCP_PROXY_ALLOWED_REDIRECT_URIS}" },
+        { "name": "BFLOW_MCP_PROXY_CIMD_ALLOWED_CLIENT_IDS", "value": "${BFLOW_MCP_PROXY_CIMD_ALLOWED_CLIENT_IDS}" }
       ],
 
       "logConfiguration": {

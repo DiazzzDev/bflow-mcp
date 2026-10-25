@@ -1,5 +1,6 @@
 package bflow.mcp.security;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,6 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>{@code registration_endpoint} points at
  * {@link ClientRegistrationController}, bflow-mcp's own stateless DCR
  * shim (ADR-0002) — Cognito still has no RFC 7591 endpoint of its own.</p>
+ *
+ * <p>When at least one CIMD client is allowlisted ({@link CimdClientAllowlist}),
+ * the document also advertises {@code client_id_metadata_document_supported},
+ * so clients that prefer Client ID Metadata Documents use them. DCR stays
+ * advertised either way (ADR-0004).</p>
  */
 @RestController
 public class AuthorizationServerMetadataController {
@@ -70,17 +76,24 @@ public class AuthorizationServerMetadataController {
     /** Cognito's real issuer — used only to derive its JWKS URI. */
     private final String cognitoIssuerUri;
 
+    /** Decides whether CIMD support is advertised. */
+    private final CimdClientAllowlist cimdAllowlist;
+
     /**
      * Creates the controller.
      * @param publicBaseUrl this instance's public URL.
      * @param cognitoIssuerUri Cognito's issuer URI.
+     * @param cimdAllowlist the allowlisted CIMD clients; empty means
+     *      CIMD is not advertised.
      */
     public AuthorizationServerMetadataController(
             @Value("${bflow.mcp.public-base-url}") final String publicBaseUrl,
             @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
-            final String cognitoIssuerUri) {
+            final String cognitoIssuerUri,
+            final CimdClientAllowlist cimdAllowlist) {
         this.publicBaseUrl = publicBaseUrl;
         this.cognitoIssuerUri = cognitoIssuerUri;
+        this.cimdAllowlist = cimdAllowlist;
     }
 
     /**
@@ -89,18 +102,20 @@ public class AuthorizationServerMetadataController {
      */
     @GetMapping("/.well-known/oauth-authorization-server")
     public Map<String, Object> metadata() {
-        return Map.of(
-                "issuer", publicBaseUrl,
-                "authorization_endpoint", publicBaseUrl + "/oauth/authorize",
-                "token_endpoint", publicBaseUrl + "/oauth/token",
-                "registration_endpoint", publicBaseUrl + "/oauth/register",
-                "jwks_uri", cognitoIssuerUri + "/.well-known/jwks.json",
-                "response_types_supported", List.of("code"),
-                "grant_types_supported",
-                        List.of("authorization_code", "refresh_token"),
-                "code_challenge_methods_supported", List.of("S256"),
-                "token_endpoint_auth_methods_supported", List.of("none"),
-                "scopes_supported", SCOPES_SUPPORTED
-        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("issuer", publicBaseUrl);
+        metadata.put("authorization_endpoint", publicBaseUrl + "/oauth/authorize");
+        metadata.put("token_endpoint", publicBaseUrl + "/oauth/token");
+        metadata.put("registration_endpoint", publicBaseUrl + "/oauth/register");
+        metadata.put("jwks_uri", cognitoIssuerUri + "/.well-known/jwks.json");
+        metadata.put("response_types_supported", List.of("code"));
+        metadata.put("grant_types_supported", List.of("authorization_code", "refresh_token"));
+        metadata.put("code_challenge_methods_supported", List.of("S256"));
+        metadata.put("token_endpoint_auth_methods_supported", List.of("none"));
+        metadata.put("scopes_supported", SCOPES_SUPPORTED);
+        if (cimdAllowlist.isEnabled()) {
+            metadata.put("client_id_metadata_document_supported", true);
+        }
+        return metadata;
     }
 }
