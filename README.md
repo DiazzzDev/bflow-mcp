@@ -65,6 +65,15 @@ https://mcp.bflow-studio.com/mcp
 You'll be asked to log in with your BFlow account the first time — the
 same login (including Google) you already use for BFlow.
 
+#### Hosted availability
+
+When the production cost-saving schedule is enabled, the hosted MCP service is
+offline daily from 00:00 to 08:00 in `America/El_Salvador`. At 08:00 the ECS
+service automatically starts again; allow the normal container startup time
+before retrying. During that window the MCP intentionally has no running task,
+so a connector receives an unavailable connection rather than a localized MCP
+response. Self-hosted installations are unaffected.
+
 ### Self-hosted
 
 ```bash
@@ -158,6 +167,9 @@ security boundaries this service implements are documented in
 AWS resources are managed with Terraform in [`infra/`](./infra/README.md). It
 reads (never modifies) the ECS cluster, subnets and security group owned by
 BFlow-Financial-Engine, and deploys run from `.github/workflows/deploy.yml`.
+The optional `mcp_off_hours_enabled` Terraform variable schedules the hosted
+service down at midnight and up at 08:00 in `America/El_Salvador`; it defaults
+to `false`.
 
 ---
 

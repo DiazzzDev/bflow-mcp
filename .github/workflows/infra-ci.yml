@@ -53,3 +53,4 @@ jobs:
         run: |
           grep -A3 'variable "manage_cognito"' infra/terraform/variables.tf | grep -q 'default     = false'
           grep -A3 'variable "dns_sync_enabled"' infra/terraform/variables.tf | grep -q 'default     = false'
+          grep -A3 'variable "mcp_off_hours_enabled"' infra/terraform/variables.tf | grep -q 'default     = false'

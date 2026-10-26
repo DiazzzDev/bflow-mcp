@@ -48,6 +48,12 @@ variable "ecs_service_name" {
   default = "bflow-mcp"
 }
 
+variable "mcp_off_hours_enabled" {
+  type        = bool
+  description = "Opt-in. Stops the hosted ECS service daily at 00:00 and restores one task at 08:00 in America/El_Salvador. The task definition remains registered."
+  default     = false
+}
+
 variable "ecs_task_family" {
   type    = string
   default = "bflow-mcp"

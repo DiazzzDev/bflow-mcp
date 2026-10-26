@@ -38,6 +38,7 @@ Consequences:
 |---|---|
 | `shared.tf` | Data sources for everything owned by the monolith |
 | `platform.tf` | ECR, log group, ECS roles, optional OTel trace permission (`otel_traces_enabled`) |
+| `off-hours.tf` | Opt-in EventBridge Scheduler schedules that set the hosted MCP service to zero tasks overnight |
 | `github-oidc.tf` | Deploy role and its minimal policy |
 | `cognito.tf` | Resource server, app client, Managed Login branding (`manage_cognito`) |
 | `dns-sync.tf` | Secret container, Lambda, role, log group, EventBridge target (`dns_sync_enabled`) |
@@ -97,6 +98,32 @@ task:
 Day to day: `terraform plan` / `terraform apply` / `terraform fmt -recursive` /
 `terraform destroy` (it only removes what this stack owns; shared resources are
 read-only here).
+
+### Hosted MCP off-hours
+
+Set `mcp_off_hours_enabled = true` to reduce Fargate runtime cost outside the
+working window. Terraform then creates two EventBridge Scheduler schedules in
+`America/El_Salvador`: one sets the `bflow-mcp` ECS service's desired count to
+zero at 00:00; the other sets it to one at 08:00 every day. They use a dedicated
+role restricted to `ecs:UpdateService` for that exact service. The task
+definition is not stopped, deregistered, or changed.
+
+EventBridge Scheduler invokes within the selected minute and ECS still needs to
+start the task, so 08:00 is the automatic recovery trigger rather than a
+readiness SLO. Confirm the task reaches `RUNNING` before treating a production
+change as complete.
+
+With the service intentionally at zero, the current Cloudflare/DNS path has no
+MCP process that can return a localized protocol error. Clients will receive a
+connection-level unavailable error during the window. A localized maintenance
+response would require an always-on proxy or edge function in front of the MCP,
+which is deliberately not introduced by this cost-saving schedule.
+
+The variable controls creation of the schedules and defaults to `false`. If it
+is turned off while the service is already at zero, Terraform removes the
+schedules but does not change ECS desired count; restore it explicitly with
+`aws ecs update-service --cluster bflow-cluster --service bflow-mcp
+--desired-count 1` (using the actual configured names).
 
 ### DNS sync Lambda
 
