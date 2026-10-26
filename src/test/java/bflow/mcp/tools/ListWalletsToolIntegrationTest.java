@@ -13,6 +13,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import bflow.mcp.support.AbstractToolIntegrationTest;
 
@@ -47,6 +50,23 @@ class ListWalletsToolIntegrationTest extends AbstractToolIntegrationTest {
     }
 
     @Test
+    void forwardsTheAcceptedLanguageToBflow() {
+        authenticateAs("user-123", "bflow-mcp/wallets.read");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(HttpHeaders.ACCEPT_LANGUAGE, "en-US,en;q=0.9");
+        RequestContextHolder.setRequestAttributes(
+                new ServletRequestAttributes(request));
+
+        mockBflowApi.expect(requestTo("http://bflow-api-under-test/api/v1/wallets"))
+                .andExpect(header(HttpHeaders.ACCEPT_LANGUAGE, "en-US,en;q=0.9"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        listWalletsTool.listWallets();
+
+        mockBflowApi.verify();
+    }
+
+    @Test
     void deniesTheCallWhenTheScopeIsMissing() {
         authenticateWithNoScopes("user-123");
 
@@ -57,6 +77,7 @@ class ListWalletsToolIntegrationTest extends AbstractToolIntegrationTest {
 
         assertThat(result)
                 .contains("\"code\":\"SCOPE_DENIED\"")
+                .contains("bflow-mcp/wallets.read")
                 .contains("\"retryable\":false");
         mockBflowApi.verify();
     }

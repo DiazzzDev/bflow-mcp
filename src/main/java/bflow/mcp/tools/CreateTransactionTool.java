@@ -5,13 +5,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
 import bflow.mcp.client.BflowApiClient;
 import bflow.mcp.confirmation.ConfirmationGate;
 import bflow.mcp.security.RequiresScope;
+import bflow.mcp.ui.ConfirmationUiMetaProvider;
 
 /**
  * Creates a new expense or income entry for the authenticated user.
@@ -90,34 +91,35 @@ public class CreateTransactionTool {
      * @return the raw JSON body returned by BFlow's API, or a
      *      {@code CONFIRMATION_REQUIRED} preview if not yet confirmed.
      */
-    @Tool(description = "Creates a new expense or income entry for the "
+    @McpTool(description = "Creates a new expense or income entry for the "
             + "current user (e.g. 'I bought a phone for $500' is an "
             + "EXPENSE, 'I got paid my salary' is an INCOME). Does not "
             + "handle recurring transactions. If retrying after an "
             + "unclear result, pass the same idempotencyKey used before "
             + "instead of calling again blind. Requires confirmed=true "
             + "to actually execute — call once to get a preview, show it "
-            + "to the user, then call again with confirmed=true.")
+            + "to the user, then call again with confirmed=true.",
+            metaProvider = ConfirmationUiMetaProvider.class)
     @RequiresScope("bflow-mcp/transactions.write")
     public String createTransaction(
-            @ToolParam(description = "EXPENSE or INCOME") final String type,
-            @ToolParam(description = "Short title, 1-50 characters") final String title,
-            @ToolParam(description = "Amount, must be positive") final double amount,
-            @ToolParam(description = "Date in YYYY-MM-DD format, not in the future")
+            @McpToolParam(description = "EXPENSE or INCOME") final String type,
+            @McpToolParam(description = "Short title, 1-50 characters") final String title,
+            @McpToolParam(description = "Amount, must be positive") final double amount,
+            @McpToolParam(description = "Date in YYYY-MM-DD format, not in the future")
                 final String date,
-            @ToolParam(description = "Wallet id this transaction belongs to")
+            @McpToolParam(description = "Wallet id this transaction belongs to")
                 final String walletId,
-            @ToolParam(description = "Category id this transaction belongs to")
+            @McpToolParam(description = "Category id this transaction belongs to")
                 final String categoryId,
-            @ToolParam(description = "Optional longer description, up to "
+            @McpToolParam(description = "Optional longer description, up to "
                     + "100 characters", required = false)
                 final String description,
-            @ToolParam(description = "Optional: reuse the same value "
+            @McpToolParam(description = "Optional: reuse the same value "
                     + "when retrying this exact call after an unclear "
                     + "result, to avoid creating a duplicate. Omit for "
                     + "a new transaction", required = false)
                 final String idempotencyKey,
-            @ToolParam(description = "Set to true only after the user "
+            @McpToolParam(description = "Set to true only after the user "
                     + "has confirmed the preview. Omit or false to get "
                     + "a preview without creating anything", required = false)
                 final Boolean confirmed) {
@@ -143,7 +145,7 @@ public class CreateTransactionTool {
         }
 
         String preview = confirmationGate.checkOrNull(
-                confirmed, "CREATE_TRANSACTION", body);
+                confirmed, "CREATE_TRANSACTION", "createTransaction", body);
         if (preview != null) {
             return preview;
         }

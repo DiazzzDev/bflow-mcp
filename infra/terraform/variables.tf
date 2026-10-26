@@ -192,7 +192,6 @@ variable "cognito_scopes" {
     "budgets.write"      = "Create or update budgets"
     "recurring.read"     = "View recurring items"
     "recurring.write"    = "Create or update recurring items"
-    "dashboard.read"     = "View dashboard/spending summaries"
     "categories.read"    = "View transaction categories"
   }
 }
