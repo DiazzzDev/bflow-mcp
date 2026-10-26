@@ -116,7 +116,7 @@ public class CreateBudgetTool {
         }
 
         String preview = confirmationGate.checkOrNull(
-                confirmed, "CREATE_BUDGET", body);
+                confirmed, "CREATE_BUDGET", "createBudget", body);
         if (preview != null) {
             return preview;
         }

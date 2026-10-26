@@ -93,8 +93,9 @@ class McpAppsUiTest {
             List<String> externalRequests = watchExternalRequests(page);
             page.setContent(harness("confirmation.html", "light"));
             Frame app = awaitApp(page, "confirmation.html");
-            sendInput(page, "createTransaction", Map.of("title", "Coffee"));
+            sendInput(page, Map.of("type", "EXPENSE", "title", "Coffee"));
             sendResult(page, Map.of("locale", "en", "message", "Review details.",
+                    "toolName", "createTransaction",
                     "labels", Map.of("title", "Confirm action", "confirm", "Confirm",
                             "cancel", "Cancel"), "preview", Map.of("title", "Coffee")));
 
@@ -104,6 +105,8 @@ class McpAppsUiTest {
             app.getByRole(AriaRole.BUTTON,
                     new Frame.GetByRoleOptions().setName("Confirm"))
                     .press("Enter");
+            page.waitForFunction("() => window.calls.some(call => "
+                    + "call.name === 'createTransaction' && call.arguments.confirmed === true)");
             assertThat(page.evaluate("() => window.calls").toString())
                     .contains("createTransaction").contains("confirmed");
             assertThat(externalRequests).isEmpty();
@@ -194,10 +197,9 @@ class McpAppsUiTest {
                 .orElseThrow();
     }
 
-    private static void sendInput(final Page page, final String name,
-            final Map<String, Object> arguments) {
+    private static void sendInput(final Page page, final Map<String, Object> arguments) {
         post(page, Map.of("jsonrpc", "2.0", "method", "ui/notifications/tool-input",
-                "params", Map.of("name", name, "arguments", arguments)));
+                "params", Map.of("arguments", arguments)));
     }
 
     private static void sendResult(final Page page, final Map<String, Object> result) {

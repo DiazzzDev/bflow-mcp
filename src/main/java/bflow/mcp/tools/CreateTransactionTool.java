@@ -145,7 +145,7 @@ public class CreateTransactionTool {
         }
 
         String preview = confirmationGate.checkOrNull(
-                confirmed, "CREATE_TRANSACTION", body);
+                confirmed, "CREATE_TRANSACTION", "createTransaction", body);
         if (preview != null) {
             return preview;
         }

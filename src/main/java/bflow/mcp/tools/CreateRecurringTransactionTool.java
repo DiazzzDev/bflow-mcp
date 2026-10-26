@@ -117,7 +117,8 @@ public class CreateRecurringTransactionTool {
         }
 
         String preview = confirmationGate.checkOrNull(
-                confirmed, "CREATE_RECURRING_TRANSACTION", body);
+                confirmed, "CREATE_RECURRING_TRANSACTION",
+                "createRecurringTransaction", body);
         if (preview != null) {
             return preview;
         }

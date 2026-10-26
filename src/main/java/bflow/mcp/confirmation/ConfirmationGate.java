@@ -56,6 +56,7 @@ public class ConfirmationGate {
      *      false means "not yet confirmed".
      * @param action a short machine-readable name for the action, e.g.
      *      {@code "CREATE_TRANSACTION"}.
+     * @param toolName MCP tool name to invoke after the user confirms.
      * @param preview the parsed parameters, exactly as they would be
      *      sent to BFlow if executed — not a re-description, the actual
      *      values, so what the human confirms is what happens.
@@ -64,7 +65,7 @@ public class ConfirmationGate {
      *      proceed with the real operation.
      */
     public String checkOrNull(final Boolean confirmed, final String action,
-            final Map<String, Object> preview) {
+            final String toolName, final Map<String, Object> preview) {
         if (Boolean.TRUE.equals(confirmed)) {
             return null;
         }
@@ -72,6 +73,7 @@ public class ConfirmationGate {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("status", "CONFIRMATION_REQUIRED");
         response.put("action", action);
+        response.put("toolName", toolName);
         response.put("preview", preview);
         response.put("locale", LocaleContextHolder.getLocale().toLanguageTag());
         response.put("message", messageService.get("tool.confirmation.required"));

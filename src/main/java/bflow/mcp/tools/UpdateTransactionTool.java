@@ -123,7 +123,7 @@ public class UpdateTransactionTool {
         }
 
         String preview = confirmationGate.checkOrNull(
-                confirmed, "UPDATE_TRANSACTION", body);
+                confirmed, "UPDATE_TRANSACTION", "updateTransaction", body);
         if (preview != null) {
             return preview;
         }
