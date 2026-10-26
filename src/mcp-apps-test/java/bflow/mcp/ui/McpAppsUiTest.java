@@ -68,6 +68,8 @@ class McpAppsUiTest {
             app.getByRole(AriaRole.BUTTON,
                     new Frame.GetByRoleOptions().setName("Retry"))
                     .click();
+            page.waitForFunction("() => window.calls.some(call => "
+                    + "call.name === 'listBudgets')");
             assertThat(page.evaluate("() => window.calls").toString())
                     .contains("listBudgets");
 
