@@ -137,6 +137,9 @@ class McpAppsUiTest {
             app.locator("#date").fill("2026-10-25");
             app.locator("#submit").press("Enter");
 
+            page.waitForFunction("() => window.calls.some(call => "
+                    + "call.name === 'createTransaction')");
+
             assertThat(page.evaluate("() => window.calls").toString())
                     .contains("listWallets").contains("listCategories")
                     .contains("createTransaction");

@@ -57,9 +57,9 @@ resource "aws_scheduler_schedule" "mcp_off_hours_stop" {
     arn      = "arn:${data.aws_partition.current.partition}:scheduler:::aws-sdk:ecs:updateService"
     role_arn = aws_iam_role.mcp_off_hours_scheduler[0].arn
     input = jsonencode({
-      cluster      = data.aws_ecs_cluster.shared.cluster_name
-      service      = var.ecs_service_name
-      desiredCount = 0
+      Cluster      = data.aws_ecs_cluster.shared.cluster_name
+      Service      = var.ecs_service_name
+      DesiredCount = 0
     })
   }
 }
@@ -79,9 +79,9 @@ resource "aws_scheduler_schedule" "mcp_off_hours_start" {
     arn      = "arn:${data.aws_partition.current.partition}:scheduler:::aws-sdk:ecs:updateService"
     role_arn = aws_iam_role.mcp_off_hours_scheduler[0].arn
     input = jsonencode({
-      cluster      = data.aws_ecs_cluster.shared.cluster_name
-      service      = var.ecs_service_name
-      desiredCount = 1
+      Cluster      = data.aws_ecs_cluster.shared.cluster_name
+      Service      = var.ecs_service_name
+      DesiredCount = 1
     })
   }
 }
