@@ -24,8 +24,10 @@
 
 	<properties>
 		<java.version>21</java.version>
-		<spring-ai.version>1.1.6</spring-ai.version>
+		<spring-ai.version>2.0.2</spring-ai.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+		<jacoco.version>0.8.14</jacoco.version>
+		<playwright.version>1.64.0</playwright.version>
 		<!-- Jackson 2.x (com.fasterxml.jackson.core): CVE-2026-89407/89425/68497/91776/91777.
      	Fixed en 2.21.7. -->
 		<jackson-2-bom.version>2.21.7</jackson-2-bom.version>
@@ -66,9 +68,9 @@
 	</dependencyManagement>
 
 	<dependencies>
-		<!-- MCP server over Streamable HTTP. This is the only MCP-specific
-		     dependency needed — tools are just @Component beans with
-		     @Tool-annotated methods, auto-registered. -->
+		<!-- MCP server over Streamable HTTP. Tools and resources are
+		     @Component beans with @McpTool/@McpResource methods, discovered
+		     by Spring AI's annotation scanner. -->
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
 			<artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
@@ -165,6 +167,74 @@
 					</excludes>
 				</configuration>
 			</plugin>
+
+			<!-- Produce coverage in every verify and reject regressions below
+			     the initial repository-wide 60% line baseline. -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<executions>
+					<execution>
+						<goals><goal>prepare-agent</goal></goals>
+					</execution>
+					<execution>
+						<id>coverage-report</id>
+						<phase>verify</phase>
+						<goals><goal>report</goal><goal>check</goal></goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.60</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- Browser QA is opt-in locally and is run in its dedicated CI job. -->
+		<profile>
+			<id>mcp-apps-qa</id>
+			<dependencies>
+				<dependency>
+					<groupId>com.microsoft.playwright</groupId>
+					<artifactId>playwright</artifactId>
+					<version>${playwright.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<version>3.6.1</version>
+						<executions>
+							<execution>
+								<id>add-mcp-apps-test-source</id>
+								<phase>generate-test-sources</phase>
+								<goals><goal>add-test-source</goal></goals>
+								<configuration>
+									<sources>
+										<source>src/mcp-apps-test/java</source>
+									</sources>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

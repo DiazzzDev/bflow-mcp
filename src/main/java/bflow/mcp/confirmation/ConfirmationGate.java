@@ -4,8 +4,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.stereotype.Component;
+import org.springframework.context.i18n.LocaleContextHolder;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+
+import bflow.mcp.i18n.MessageService;
 
 /**
  * Shared "propose, then confirm" gate for write tools (ADR-0010 §6/§18).
@@ -21,17 +24,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *
  * <p>Deliberately not MCP's native elicitation feature: that requires
  * a different tool-definition style ({@code @McpTool} +
- * {@code McpSyncRequestContext}) than the {@code @Tool} +
- * {@code MethodToolCallbackProvider} approach every existing tool
- * already uses, and its behavior against our pinned Spring AI version
- * hasn't been verified end-to-end. This plain-parameter approach works
- * identically with every MCP client, elicitation-capable or not.</p>
+ * {@code McpSyncRequestContext}) than this application's simple
+ * annotation-based tools, and its behavior against our pinned Spring AI
+ * version hasn't been verified end-to-end. This plain-parameter approach
+ * works identically with every MCP client, elicitation-capable or not.</p>
  */
 @Component
 public class ConfirmationGate {
 
     /** Serializes the preview response. */
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    /** Resolves visible text for the active request locale. */
+    private final MessageService messageService;
+
+    /**
+     * Creates the confirmation gate.
+     * @param objectMapper JSON serializer supplied by Spring.
+     * @param messageService request-localized message facade.
+     */
+    public ConfirmationGate(final ObjectMapper objectMapper,
+            final MessageService messageService) {
+        this.objectMapper = objectMapper;
+        this.messageService = messageService;
+    }
 
     /**
      * Checks whether the caller has confirmed the operation.
@@ -57,16 +73,19 @@ public class ConfirmationGate {
         response.put("status", "CONFIRMATION_REQUIRED");
         response.put("action", action);
         response.put("preview", preview);
-        response.put("message", "Nothing has happened yet. Show this to "
-                + "the user, and if they approve, call this same tool "
-                + "again with confirmed=true and the exact same "
-                + "parameters to execute it.");
+        response.put("locale", LocaleContextHolder.getLocale().toLanguageTag());
+        response.put("message", messageService.get("tool.confirmation.required"));
+        response.put("labels", Map.of(
+                "title", messageService.get("tool.confirmation.title"),
+                "confirm", messageService.get("tool.confirmation.confirm"),
+                "cancel", messageService.get("tool.confirmation.cancel")));
 
         try {
             return objectMapper.writeValueAsString(response);
         } catch (Exception neverHappens) {
             return "{\"status\":\"CONFIRMATION_REQUIRED\",\"action\":\""
-                    + action + "\"}";
+                    + action + "\",\"message\":\""
+                    + messageService.get("tool.confirmation.required") + "\"}";
         }
     }
 }

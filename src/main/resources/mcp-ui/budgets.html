@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { color-scheme: light dark; --bg: #ffffff; --fg: #172033; --muted: #526176; --card: #f5f7fb; --line: #c8d0dc; --accent: #075fc4; --danger: #b42318; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #101722; --fg: #edf2fa; --muted: #aab7c8; --card: #1c2736; --line: #3a4a5d; --accent: #8dc2ff; --danger: #ffb4ab; } }
+    :root[data-theme="light"] { color-scheme: light; --bg: #ffffff; --fg: #172033; --muted: #526176; --card: #f5f7fb; --line: #c8d0dc; --accent: #075fc4; --danger: #b42318; }
+    :root[data-theme="dark"] { color-scheme: dark; --bg: #101722; --fg: #edf2fa; --muted: #aab7c8; --card: #1c2736; --line: #3a4a5d; --accent: #8dc2ff; --danger: #ffb4ab; }
+    body { background: var(--bg); color: var(--fg); font: 16px system-ui, sans-serif; margin: 0; }
+    main { display: grid; gap: 1rem; padding: 1rem; } h1 { font-size: 1.25rem; margin: 0; }
+    .list { display: grid; gap: .75rem; } .card { background: var(--card); border: 1px solid var(--line); border-radius: .5rem; padding: .9rem; }
+    .row { display: flex; gap: .75rem; justify-content: space-between; } .muted { color: var(--muted); }
+    progress { accent-color: var(--accent); width: 100%; } button { border: 1px solid var(--accent); background: var(--accent); color: Canvas; border-radius: .35rem; padding: .5rem .75rem; }
+    button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; } .error { color: var(--danger); }
+  </style>
+</head>
+<body><main aria-live="polite" aria-busy="true"><h1 id="title"></h1><section id="content" class="list"></section></main>
+<script>
+(() => {
+  const root = document.documentElement, main = document.querySelector('main'), title = document.querySelector('#title'), content = document.querySelector('#content');
+  let labels = {}, locale = 'es', sequence = 0;
+  const emit = (method, params) => parent.postMessage({jsonrpc:'2.0', id: ++sequence, method, params}, '*');
+  const text = (value) => document.createTextNode(value == null ? '' : String(value));
+  const setTheme = (context) => { if (context && (context.theme === 'light' || context.theme === 'dark')) root.dataset.theme = context.theme; };
+  const unwrap = (value) => { if (value && typeof value === 'object' && value.data) return unwrap(value.data); return value; };
+  const records = (value) => { const data = unwrap(value); if (Array.isArray(data)) return data; return data && (data.content || data.items || data.budgets) || []; };
+  const number = (value, currency) => new Intl.NumberFormat(locale, currency ? {style:'currency', currency} : {maximumFractionDigits:2}).format(Number(value || 0));
+  const clear = () => content.replaceChildren();
+  const retry = () => { emit('tools/call', {name:'listBudgets', arguments:{}}); };
+  const renderError = (error) => { clear(); const message = document.createElement('p'); message.className = 'error'; message.append(text(error.message)); content.append(message); if (error.retryable) { const button = document.createElement('button'); button.type = 'button'; button.append(text(labels.retry)); button.addEventListener('click', retry); content.append(button); } main.setAttribute('aria-busy', 'false'); };
+  const render = (payload) => { labels = payload.labels || labels; locale = payload.locale || locale; document.documentElement.lang = locale; title.textContent = labels.title || ''; clear(); if (payload.status === 'LOADING') { const loading = document.createElement('p'); loading.append(text(labels.loading)); content.append(loading); return; } const list = records(payload.data); if (!list.length) { const empty = document.createElement('p'); empty.append(text(labels.empty)); content.append(empty); } list.forEach((budget) => { const currency = budget.currency; const card = document.createElement('article'); card.className = 'card'; const heading = document.createElement('strong'); heading.append(text(budget.name || budget.period || '')); card.append(heading); const progress = document.createElement('progress'); const percentage = Math.min(100, Math.max(0, Number(budget.percentage || 0))); progress.max = 100; progress.value = percentage; progress.setAttribute('aria-label', labels.progress || ''); card.append(progress); [['spent', budget.spent], ['remaining', budget.remaining], ['limit', budget.budgetLimit]].forEach(([key, value]) => { const row = document.createElement('div'); row.className = 'row'; const label = document.createElement('span'); label.className = 'muted'; label.append(text(labels[key])); const amount = document.createElement('span'); amount.append(text(number(value, currency))); row.append(label, amount); card.append(row); }); content.append(card); }); main.setAttribute('aria-busy', 'false'); };
+  window.addEventListener('message', ({data}) => { if (!data) return; if (data.method === 'ui/notifications/tool-result') { const result = data.params && (data.params.structuredContent || data.params.result || data.params); let payload = result; if (result && Array.isArray(result.content) && result.content[0] && result.content[0].text) { try { payload = JSON.parse(result.content[0].text); } catch (_) {} } if (payload && payload.code) renderError(payload); else render(payload || {}); } if (data.id && data.result && data.result.hostContext) { setTheme(data.result.hostContext); emit('ui/notifications/initialized', {}); } });
+  emit('ui/initialize', {capabilities:{}});
+})();
+</script></body></html>

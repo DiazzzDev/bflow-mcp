@@ -6,6 +6,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -67,6 +69,7 @@ public class BflowApiClient {
                 .header(HEADER_CHANNEL, "mcp")
                 .header(HEADER_ACTOR_TYPE, "AGENT")
                 .header(HEADER_CORRELATION_ID, UUID.randomUUID().toString())
+                .headers(this::forwardAcceptLanguage)
                 .retrieve()
                 .body(responseType);
     }
@@ -132,6 +135,7 @@ public class BflowApiClient {
                 .header(HEADER_ACTOR_TYPE, "AGENT")
                 .header(HEADER_CORRELATION_ID, UUID.randomUUID().toString())
                 .header(HEADER_IDEMPOTENCY_KEY, idempotencyKey)
+                .headers(this::forwardAcceptLanguage)
                 .body(body)
                 .retrieve()
                 .body(responseType);
@@ -155,6 +159,7 @@ public class BflowApiClient {
                 .header(HEADER_CHANNEL, "mcp")
                 .header(HEADER_ACTOR_TYPE, "AGENT")
                 .header(HEADER_CORRELATION_ID, UUID.randomUUID().toString())
+                .headers(this::forwardAcceptLanguage)
                 .body(body)
                 .retrieve()
                 .body(responseType);
@@ -174,5 +179,22 @@ public class BflowApiClient {
         }
 
         return jwtAuth.getToken().getTokenValue();
+    }
+
+    /**
+     * Preserves the caller's negotiated language when BFlow resolves its
+     * own API messages. The MCP server still owns its local UI labels.
+     * @param headers outgoing request headers.
+     */
+    private void forwardAcceptLanguage(final HttpHeaders headers) {
+        var requestAttributes = RequestContextHolder.getRequestAttributes();
+        if (!(requestAttributes instanceof ServletRequestAttributes servlet)) {
+            return;
+        }
+
+        String language = servlet.getRequest().getHeader(HttpHeaders.ACCEPT_LANGUAGE);
+        if (language != null && !language.isBlank()) {
+            headers.set(HttpHeaders.ACCEPT_LANGUAGE, language);
+        }
     }
 }
