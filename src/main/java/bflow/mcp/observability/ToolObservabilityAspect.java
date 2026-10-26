@@ -5,7 +5,7 @@ import org.aopalliance.intercept.MethodInvocation;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
-import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 /**
- * Logs every {@code @Tool} invocation — name, the authenticated user
+ * Logs every {@code @McpTool} invocation — name, the authenticated user
  * (subject only, never the raw token), duration, and outcome — whether
  * it succeeds, gets caught by {@link bflow.mcp.errors.ToolErrorHandlingAspect},
  * or is denied by {@link bflow.mcp.security.RequiresScopeAspect}.
@@ -50,14 +50,14 @@ public class ToolObservabilityAspect {
 
     /**
      * Wires the interceptor to every method annotated with Spring AI's
-     * {@code @Tool}.
+     * {@code @McpTool}.
      * @return the advisor Spring registers against matching beans.
      */
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public DefaultPointcutAdvisor toolObservabilityAdvisor() {
         AnnotationMatchingPointcut pointcut =
-                new AnnotationMatchingPointcut(null, Tool.class);
+                new AnnotationMatchingPointcut(null, McpTool.class);
         DefaultPointcutAdvisor advisor =
                 new DefaultPointcutAdvisor(pointcut, observabilityInterceptor());
         advisor.setOrder(ADVISOR_ORDER);

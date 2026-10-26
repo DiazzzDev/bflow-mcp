@@ -1,6 +1,6 @@
 package bflow.mcp.tools;
 
-import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.stereotype.Component;
 
 import bflow.mcp.client.BflowApiClient;
@@ -38,7 +38,7 @@ public class ListCategoriesTool {
      * Lists all transaction categories.
      * @return the raw JSON body returned by BFlow's API.
      */
-    @Tool(description = "Lists the transaction categories available in "
+    @McpTool(description = "Lists the transaction categories available in "
             + "BFlow, including each category's id, name, type "
             + "(INCOME, EXPENSE or TRANSFER), icon and color. Use this "
             + "to look up the categoryId needed by tools that create "

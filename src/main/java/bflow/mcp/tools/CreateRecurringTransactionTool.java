@@ -4,13 +4,14 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
 import bflow.mcp.client.BflowApiClient;
 import bflow.mcp.confirmation.ConfirmationGate;
 import bflow.mcp.security.RequiresScope;
+import bflow.mcp.ui.ConfirmationUiMetaProvider;
 
 /**
  * Creates a new recurring expense or income for the authenticated user
@@ -63,37 +64,38 @@ public class CreateRecurringTransactionTool {
      * @return the raw JSON body returned by BFlow's API, or a
      *      {@code CONFIRMATION_REQUIRED} preview if not yet confirmed.
      */
-    @Tool(description = "Creates a new recurring expense or income "
+    @McpTool(description = "Creates a new recurring expense or income "
             + "schedule (e.g. a monthly subscription, a biweekly "
             + "paycheck). BFlow generates the individual transactions "
             + "from this automatically — use createTransaction instead "
             + "for a one-off entry. Requires confirmed=true to actually "
             + "execute — call once to get a preview, show it to the "
-            + "user, then call again with confirmed=true.")
+            + "user, then call again with confirmed=true.",
+            metaProvider = ConfirmationUiMetaProvider.class)
     @RequiresScope("bflow-mcp/recurring.write")
     public String createRecurringTransaction(
-            @ToolParam(description = "EXPENSE or INCOME") final String type,
-            @ToolParam(description = "Short title") final String title,
-            @ToolParam(description = "Amount per occurrence, must be positive")
+            @McpToolParam(description = "EXPENSE or INCOME") final String type,
+            @McpToolParam(description = "Short title") final String title,
+            @McpToolParam(description = "Amount per occurrence, must be positive")
                 final double amount,
-            @ToolParam(description = "DAILY, WEEKLY, or MONTHLY") final String frequency,
-            @ToolParam(description = "Start date in YYYY-MM-DD format")
+            @McpToolParam(description = "DAILY, WEEKLY, or MONTHLY") final String frequency,
+            @McpToolParam(description = "Start date in YYYY-MM-DD format")
                 final String startDate,
-            @ToolParam(description = "Wallet id this belongs to")
+            @McpToolParam(description = "Wallet id this belongs to")
                 final String walletId,
-            @ToolParam(description = "Category id this belongs to")
+            @McpToolParam(description = "Category id this belongs to")
                 final String categoryId,
-            @ToolParam(description = "Optional longer description", required = false)
+            @McpToolParam(description = "Optional longer description", required = false)
                 final String description,
-            @ToolParam(description = "Optional end date in YYYY-MM-DD "
+            @McpToolParam(description = "Optional end date in YYYY-MM-DD "
                     + "format. Omit for an indefinite recurrence",
                     required = false)
                 final String endDate,
-            @ToolParam(description = "Optional: repeat every N periods "
+            @McpToolParam(description = "Optional: repeat every N periods "
                     + "instead of every 1 (e.g. 2 with WEEKLY means "
                     + "every 2 weeks). Defaults to 1", required = false)
                 final Integer intervalValue,
-            @ToolParam(description = "Set to true only after the user "
+            @McpToolParam(description = "Set to true only after the user "
                     + "has confirmed the preview. Omit or false to get "
                     + "a preview without creating anything", required = false)
                 final Boolean confirmed) {

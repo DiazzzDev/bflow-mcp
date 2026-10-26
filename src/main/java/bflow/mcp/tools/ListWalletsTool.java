@@ -1,6 +1,6 @@
 package bflow.mcp.tools;
 
-import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.stereotype.Component;
 
 import bflow.mcp.client.BflowApiClient;
@@ -36,7 +36,7 @@ public class ListWalletsTool {
      * Lists the authenticated user's own wallets.
      * @return the raw JSON body returned by BFlow's API.
      */
-    @Tool(description = "Lists the wallets the current user owns or "
+    @McpTool(description = "Lists the wallets the current user owns or "
             + "belongs to.")
     @RequiresScope("bflow-mcp/wallets.read")
     public String listWallets() {

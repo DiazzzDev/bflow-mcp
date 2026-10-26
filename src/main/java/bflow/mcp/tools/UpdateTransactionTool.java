@@ -4,13 +4,14 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
 import bflow.mcp.client.BflowApiClient;
 import bflow.mcp.confirmation.ConfirmationGate;
 import bflow.mcp.security.RequiresScope;
+import bflow.mcp.ui.ConfirmationUiMetaProvider;
 
 /**
  * Updates an existing expense or income entry for the authenticated user.
@@ -67,36 +68,37 @@ public class UpdateTransactionTool {
      * @return the raw JSON body returned by BFlow's API, or a
      *      {@code CONFIRMATION_REQUIRED} preview if not yet confirmed.
      */
-    @Tool(description = "Updates an existing expense or income entry. "
+    @McpTool(description = "Updates an existing expense or income entry. "
             + "This replaces the whole entry, so pass every field, not "
             + "just the one that changed — read the transaction first "
             + "if unsure of its current values, especially 'recurring' "
             + "(passing recurring=false on a recurring transaction turns "
             + "recurrence off). Requires confirmed=true to actually "
             + "execute — call once to get a preview, show it to the "
-            + "user, then call again with confirmed=true.")
+            + "user, then call again with confirmed=true.",
+            metaProvider = ConfirmationUiMetaProvider.class)
     @RequiresScope("bflow-mcp/transactions.write")
     public String updateTransaction(
-            @ToolParam(description = "EXPENSE or INCOME — must match the "
+            @McpToolParam(description = "EXPENSE or INCOME — must match the "
                     + "transaction's actual type") final String type,
-            @ToolParam(description = "Id of the transaction to update")
+            @McpToolParam(description = "Id of the transaction to update")
                 final String transactionId,
-            @ToolParam(description = "Short title, 1-50 characters") final String title,
-            @ToolParam(description = "Amount, must be positive") final double amount,
-            @ToolParam(description = "Date in YYYY-MM-DD format, not in the future")
+            @McpToolParam(description = "Short title, 1-50 characters") final String title,
+            @McpToolParam(description = "Amount, must be positive") final double amount,
+            @McpToolParam(description = "Date in YYYY-MM-DD format, not in the future")
                 final String date,
-            @ToolParam(description = "Wallet id this transaction belongs to")
+            @McpToolParam(description = "Wallet id this transaction belongs to")
                 final String walletId,
-            @ToolParam(description = "Category id this transaction belongs to")
+            @McpToolParam(description = "Category id this transaction belongs to")
                 final String categoryId,
-            @ToolParam(description = "Optional longer description, up to "
+            @McpToolParam(description = "Optional longer description, up to "
                     + "100 characters", required = false)
                 final String description,
-            @ToolParam(description = "Whether this transaction is "
+            @McpToolParam(description = "Whether this transaction is "
                     + "recurring — use its CURRENT value, not false by "
                     + "default, unless intentionally turning recurrence off")
                 final boolean recurring,
-            @ToolParam(description = "Set to true only after the user "
+            @McpToolParam(description = "Set to true only after the user "
                     + "has confirmed the preview. Omit or false to get "
                     + "a preview without changing anything", required = false)
                 final Boolean confirmed) {
