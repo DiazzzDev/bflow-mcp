@@ -55,3 +55,6 @@ bflow:
     # The real, static App Client id (bflow-mcp-agent-client) every DCR
     # client_id token maps to — see infra/terraform/cognito.tf.
     app-client-id: ${COGNITO_APP_CLIENT_ID}
+    # Optional provider name passed to Cognito only when an OAuth client did not
+    # supply identity_provider itself. Empty preserves the existing Managed Login flow.
+    default-identity-provider: ${COGNITO_DEFAULT_IDENTITY_PROVIDER:}

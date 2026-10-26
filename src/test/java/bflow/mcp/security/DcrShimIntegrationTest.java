@@ -97,6 +97,7 @@ class DcrShimIntegrationTest extends AbstractToolIntegrationTest {
         assertThat(location).contains("code_challenge=abc123");
         assertThat(location).contains("code_challenge_method=S256");
         assertThat(location).doesNotContain("resource=");
+        assertThat(extractQueryParam(location, "identity_provider")).isNull();
         // The caller's own state never reaches Cognito directly — only
         // the outer-state JWT does.
         assertThat(location).doesNotContain("state=callers-original-state");

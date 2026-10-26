@@ -126,10 +126,10 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
                 .containsAll(TEXT_ONLY_TOOL_NAMES);
         for (JsonNode tool : tools) {
             String toolName = tool.path("name").asStringOpt().orElse(null);
-            if (toolName != null && TEXT_ONLY_TOOL_NAMES.contains(toolName)) {
+            if (toolName != null && !UI_TOOL_NAMES.contains(toolName)) {
                 assertThat(tool.path("_meta").path("ui").isMissingNode()
                         || tool.path("_meta").path("ui").isNull())
-                        .as("text-only tool must not expose _meta.ui: %s; tools/list: %s",
+                        .as("tool without a UI must not expose _meta.ui: %s; tools/list: %s",
                                 tool, toolsResponse)
                         .isTrue();
             }
