@@ -4,13 +4,14 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
 import bflow.mcp.client.BflowApiClient;
 import bflow.mcp.confirmation.ConfirmationGate;
 import bflow.mcp.security.RequiresScope;
+import bflow.mcp.ui.ConfirmationUiMetaProvider;
 
 /**
  * Creates a new budget for the authenticated user.
@@ -69,32 +70,33 @@ public class CreateBudgetTool {
      * @return the raw JSON body returned by BFlow's API, or a
      *      {@code CONFIRMATION_REQUIRED} preview if not yet confirmed.
      */
-    @Tool(description = "Creates a new budget covering all spending in "
+    @McpTool(description = "Creates a new budget covering all spending in "
             + "one wallet (e.g. 'set a $200 monthly budget for my "
             + "personal wallet'). Does not support per-category budgets "
             + "yet. Requires confirmed=true to actually execute — call "
             + "once to get a preview, show it to the user, then call "
-            + "again with confirmed=true.")
+            + "again with confirmed=true.",
+            metaProvider = ConfirmationUiMetaProvider.class)
     @RequiresScope("bflow-mcp/budgets.write")
     public String createBudget(
-            @ToolParam(description = "Wallet this budget applies to")
+            @McpToolParam(description = "Wallet this budget applies to")
                 final String walletId,
-            @ToolParam(description = "Budget amount, must be positive")
+            @McpToolParam(description = "Budget amount, must be positive")
                 final double amount,
-            @ToolParam(description = "Currency, must match the wallet's "
+            @McpToolParam(description = "Currency, must match the wallet's "
                     + "own currency, e.g. USD, EUR, MXN")
                 final String currency,
-            @ToolParam(description = "DAILY, WEEKLY, or MONTHLY")
+            @McpToolParam(description = "DAILY, WEEKLY, or MONTHLY")
                 final String period,
-            @ToolParam(description = "Start date in YYYY-MM-DD format")
+            @McpToolParam(description = "Start date in YYYY-MM-DD format")
                 final String startDate,
-            @ToolParam(description = "Warning alert threshold, 1-99 "
+            @McpToolParam(description = "Warning alert threshold, 1-99 "
                     + "percent. Defaults to 70 if omitted", required = false)
                 final Integer thresholdWarning,
-            @ToolParam(description = "Critical alert threshold, 1-99 "
+            @McpToolParam(description = "Critical alert threshold, 1-99 "
                     + "percent. Defaults to 90 if omitted", required = false)
                 final Integer thresholdCritical,
-            @ToolParam(description = "Set to true only after the user "
+            @McpToolParam(description = "Set to true only after the user "
                     + "has confirmed the preview. Omit or false to get "
                     + "a preview without creating anything", required = false)
                 final Boolean confirmed) {
@@ -114,7 +116,7 @@ public class CreateBudgetTool {
         }
 
         String preview = confirmationGate.checkOrNull(
-                confirmed, "CREATE_BUDGET", body);
+                confirmed, "CREATE_BUDGET", "createBudget", body);
         if (preview != null) {
             return preview;
         }

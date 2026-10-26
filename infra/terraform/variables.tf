@@ -48,6 +48,12 @@ variable "ecs_service_name" {
   default = "bflow-mcp"
 }
 
+variable "mcp_off_hours_enabled" {
+  type        = bool
+  description = "Opt-in. Stops the hosted ECS service daily at 00:00 and restores one task at 08:00 in America/El_Salvador. The task definition remains registered."
+  default     = false
+}
+
 variable "ecs_task_family" {
   type    = string
   default = "bflow-mcp"
@@ -192,7 +198,6 @@ variable "cognito_scopes" {
     "budgets.write"      = "Create or update budgets"
     "recurring.read"     = "View recurring items"
     "recurring.write"    = "Create or update recurring items"
-    "dashboard.read"     = "View dashboard/spending summaries"
     "categories.read"    = "View transaction categories"
   }
 }

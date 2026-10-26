@@ -66,7 +66,6 @@ public class AuthorizationServerMetadataController {
             "bflow-mcp/budgets.write",
             "bflow-mcp/recurring.read",
             "bflow-mcp/recurring.write",
-            "bflow-mcp/dashboard.read",
             "bflow-mcp/categories.read"
     );
 

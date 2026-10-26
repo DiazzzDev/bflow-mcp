@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{color-scheme:light dark;--bg:#fff;--fg:#172033;--card:#f5f7fb;--line:#c8d0dc;--accent:#075fc4;--muted:#526176;--danger:#b42318}
+    @media(prefers-color-scheme:dark){:root{--bg:#101722;--fg:#edf2fa;--card:#1c2736;--line:#3a4a5d;--accent:#8dc2ff;--muted:#aab7c8;--danger:#ffb4ab}}
+    :root[data-theme="dark"]{color-scheme:dark;--bg:#101722;--fg:#edf2fa;--card:#1c2736;--line:#3a4a5d;--accent:#8dc2ff;--muted:#aab7c8;--danger:#ffb4ab}
+    :root[data-theme="light"]{color-scheme:light}
+    body{margin:0;background:var(--bg);color:var(--fg);font:16px system-ui,sans-serif}
+    main{display:grid;gap:.85rem;padding:1rem}label{display:grid;gap:.35rem}
+    input,select,textarea{font:inherit;padding:.5rem;border:1px solid var(--line);border-radius:.35rem;background:var(--bg);color:var(--fg)}
+    button{padding:.55rem .75rem;border:1px solid var(--accent);border-radius:.35rem;background:var(--accent);color:Canvas;justify-self:start}
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+    .error{color:var(--danger)}
+  </style>
+</head>
+<body>
+  <main aria-live="polite" aria-busy="true">
+    <h1 id="title"></h1>
+    <p id="status"></p>
+    <form id="form">
+      <label id="type-label"><select id="type" required></select></label>
+      <label id="name-label"><input id="name" required maxlength="50"></label>
+      <label id="amount-label"><input id="amount" type="number" min="0.01" step="0.01" required></label>
+      <label id="date-label"><input id="date" type="date" required></label>
+      <label id="wallet-label"><select id="wallet" required></select><span id="wallet-error" class="error" role="status"></span></label>
+      <label id="category-label"><select id="category" required></select><span id="category-error" class="error" role="status"></span></label>
+      <label id="description-label"><textarea id="description" maxlength="100"></textarea></label>
+      <button id="submit" type="submit" disabled></button>
+    </form>
+  </main>
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const main = document.querySelector('main');
+      const form = document.querySelector('#form');
+      const status = document.querySelector('#status');
+      const submit = document.querySelector('#submit');
+      let labels = {};
+      let locale = 'es';
+      let walletsLoaded = false;
+      let categoriesLoaded = false;
+      let pendingLookup = null;
+      let sequence = 0;
+
+      const emit = (method, params) => {
+        parent.postMessage({jsonrpc: '2.0', id: ++sequence, method, params}, '*');
+      };
+
+      const unwrap = (value) => value && typeof value === 'object' && value.data
+        ? unwrap(value.data) : value;
+
+      const records = (value) => {
+        const data = unwrap(value);
+        return Array.isArray(data) ? data
+          : data && (data.content || data.items || data.wallets || data.categories) || [];
+      };
+
+      const select = (id, items, emptyMessage) => {
+        const node = document.querySelector('#' + id);
+        node.replaceChildren();
+        if (!items.length) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = emptyMessage;
+          node.append(option);
+          return;
+        }
+        items.forEach((item) => {
+          const option = document.createElement('option');
+          option.value = item.id || item.walletId || item.categoryId || '';
+          option.textContent = item.name || item.title || option.value;
+          node.append(option);
+        });
+      };
+
+      const updateSubmit = () => {
+        submit.disabled = !(walletsLoaded && categoriesLoaded
+          && document.querySelector('#wallet').value
+          && document.querySelector('#category').value);
+      };
+
+      const callLookup = (kind) => {
+        pendingLookup = kind;
+        emit('tools/call', {
+          name: kind === 'wallets' ? 'listWallets' : 'listCategories',
+          arguments: {}
+        });
+      };
+
+      const renderLookupError = (kind, error) => {
+        const field = document.querySelector('#' + (kind === 'wallets'
+          ? 'wallet-error' : 'category-error'));
+        field.replaceChildren();
+        field.textContent = error.message || '';
+        if (error.retryable) {
+          const retry = document.createElement('button');
+          retry.type = 'button';
+          retry.textContent = labels.retry || '';
+          retry.addEventListener('click', () => callLookup(kind));
+          field.append(document.createElement('br'), retry);
+        }
+        if (kind === 'wallets') {
+          walletsLoaded = false;
+        } else {
+          categoriesLoaded = false;
+        }
+        updateSubmit();
+      };
+
+      const renderLookupResult = (kind, payload) => {
+        if (payload && payload.code) {
+          renderLookupError(kind, payload);
+          return;
+        }
+        const data = records(payload);
+        if (kind === 'wallets') {
+          select('wallet', data, labels.walletEmpty || '');
+          walletsLoaded = true;
+        } else {
+          select('category', data, labels.categoryEmpty || '');
+          categoriesLoaded = true;
+        }
+        updateSubmit();
+      };
+
+      const parseContent = (result) => {
+        if (result && Array.isArray(result.content)
+            && result.content[0] && result.content[0].text) {
+          try {
+            return JSON.parse(result.content[0].text);
+          } catch (_) {
+            return result;
+          }
+        }
+        return result;
+      };
+
+      const render = (payload) => {
+        labels = payload.labels || labels;
+        locale = payload.locale || locale;
+        root.lang = locale;
+        document.querySelector('#title').textContent = labels.title || '';
+        [
+          ['type-label', 'type'], ['name-label', 'name'],
+          ['amount-label', 'amount'], ['date-label', 'date'],
+          ['wallet-label', 'wallet'], ['category-label', 'category']
+        ].forEach(([labelId, key]) => {
+          document.querySelector('#' + labelId).firstChild.before(
+            document.createTextNode(labels[key] || '')
+          );
+        });
+        document.querySelector('#description-label').firstChild.before(
+          document.createTextNode(labels.description || '')
+        );
+        submit.textContent = labels.submit || '';
+        status.textContent = labels.loading || '';
+        document.querySelector('#type').replaceChildren(
+          ...[['EXPENSE', 'expense'], ['INCOME', 'income']].map(([value, key]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = labels[key] || '';
+            return option;
+          })
+        );
+        main.setAttribute('aria-busy', 'true');
+        callLookup('wallets');
+      };
+
+      window.addEventListener('message', ({data}) => {
+        if (!data) return;
+        if (data.method === 'ui/notifications/tool-result') {
+          const result = data.params && (data.params.structuredContent || data.params);
+          const payload = parseContent(result);
+          if (payload && payload.labels) {
+            render(payload);
+          } else if (pendingLookup) {
+            const completedLookup = pendingLookup;
+            pendingLookup = null;
+            renderLookupResult(completedLookup, payload);
+            if (completedLookup === 'wallets') {
+              callLookup('categories');
+            } else {
+              status.textContent = '';
+              main.setAttribute('aria-busy', 'false');
+            }
+          }
+        }
+        if (data.id && data.result && data.result.hostContext) {
+          if (['light', 'dark'].includes(data.result.hostContext.theme)) {
+            root.dataset.theme = data.result.hostContext.theme;
+          }
+          emit('ui/notifications/initialized', {});
+        }
+      });
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const args = {
+          type: document.querySelector('#type').value,
+          title: document.querySelector('#name').value,
+          amount: Number(document.querySelector('#amount').value),
+          date: document.querySelector('#date').value,
+          walletId: document.querySelector('#wallet').value,
+          categoryId: document.querySelector('#category').value,
+          description: document.querySelector('#description').value || null,
+          confirmed: false
+        };
+        emit('tools/call', {name: 'createTransaction', arguments: args});
+      });
+
+      emit('ui/initialize', {capabilities: {}});
+    })();
+  </script>
+</body>
+</html>

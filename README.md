@@ -22,7 +22,6 @@ Ask an AI assistant to:
 
 - See your wallets, categories and budgets
 - Query your transaction history
-- Get a summary of this month's spending
 - Add or correct expenses and income
 - Create budgets
 - Set up recurring transactions (subscriptions, paychecks)
@@ -66,6 +65,15 @@ https://mcp.bflow-studio.com/mcp
 You'll be asked to log in with your BFlow account the first time — the
 same login (including Google) you already use for BFlow.
 
+#### Hosted availability
+
+When the production cost-saving schedule is enabled, the hosted MCP service is
+offline daily from 00:00 to 08:00 in `America/El_Salvador`. At 08:00 the ECS
+service automatically starts again; allow the normal container startup time
+before retrying. During that window the MCP intentionally has no running task,
+so a connector receives an unavailable connection rather than a localized MCP
+response. Self-hosted installations are unaffected.
+
 ### Self-hosted
 
 ```bash
@@ -97,7 +105,7 @@ first (see [Security](#security)).
 | `listTransactions` | `bflow-mcp/transactions.read` | Your expenses, incomes and transfers across all wallets |
 | `listBudgets` | `bflow-mcp/budgets.read` | Your budgets across all wallets |
 | `listRecurring` | `bflow-mcp/recurring.read` | Scheduled recurring expenses and incomes |
-| `getSpendingSummary` | `bflow-mcp/dashboard.read` | This month's spending summary across all wallets |
+| `openTransactionForm` | `bflow-mcp/transactions.write` | Opens a transaction form; it only proposes the later write |
 
 ### Write (require confirmation)
 
@@ -130,6 +138,20 @@ touching your subscription or account settings.
 - **Open source.** The code is public — you (or anyone) can read
   exactly what it does before trusting it with financial data.
 
+## MCP Apps and browser QA
+
+`listBudgets`, the transaction form, and write confirmations expose only the
+standard MCP Apps extension: a `ui://` resource with
+`text/html;profile=mcp-app` plus `_meta.ui.resourceUri`. Hosts that do not
+implement MCP Apps receive the same useful, localized JSON. The embedded HTML
+has no external resources; it calls existing MCP tools, so its authorization
+is still the caller's JWT and scopes.
+
+The default Maven build never starts a browser. Run the isolated harness with
+`mvn -P mcp-apps-qa test` after installing the browser required by Playwright;
+CI runs it in the matching Playwright Java container. The harness exercises
+the standard iframe `postMessage` flow, not a real AI host.
+
 ## Architecture
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for how a request actually
@@ -145,6 +167,9 @@ security boundaries this service implements are documented in
 AWS resources are managed with Terraform in [`infra/`](./infra/README.md). It
 reads (never modifies) the ECS cluster, subnets and security group owned by
 BFlow-Financial-Engine, and deploys run from `.github/workflows/deploy.yml`.
+The optional `mcp_off_hours_enabled` Terraform variable schedules the hosted
+service down at midnight and up at 08:00 in `America/El_Salvador`; it defaults
+to `false`.
 
 ---
 

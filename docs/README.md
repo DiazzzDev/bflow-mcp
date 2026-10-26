@@ -69,7 +69,8 @@ bflow-mcp/
 │   │   └── RequiresScopeAspect.java  Enforces it against SCOPE_* authorities
 │   └── tools/
 │       ├── ListWalletsTool.java        First tool: wallets:read → GET /api/v1/wallets
-│       └── ToolRegistrationConfig.java Registers tool beans with the MCP server
+│       └── OpenTransactionFormTool.java MCP Apps form entry point
+├── src/main/resources/mcp-ui/           Self-contained MCP Apps resources
 └── src/test/java/bflow/mcp/
     └── McpServerApplicationTests.java  Context-load smoke test
 ```
@@ -80,10 +81,19 @@ bflow-mcp/
    new (see ADR-0009 §5 — still open).
 2. Write the tool class in `tools/`, following `ListWalletsTool`: inject
    `BflowApiClient`, call the existing BFlow endpoint, annotate the
-   method with `@Tool` and `@RequiresScope`.
-3. Add it to `ToolRegistrationConfig#bflowTools`.
+   method with `@McpTool` and `@RequiresScope`.
+3. No registration class is needed: Spring AI's MCP annotation scanner
+   discovers the tool automatically.
 4. No changes needed anywhere else — the scope gate and BFlow's own
    resource-level authorization both apply automatically.
+
+## MCP Apps QA
+
+MCP Apps resources are static, self-contained `ui://` HTML with the MIME type
+`text/html;profile=mcp-app`. Tool metadata links them through the standard
+`_meta.ui.resourceUri` field. The opt-in `mcp-apps-qa` Maven profile contains
+the Java Playwright iframe harness; it is intentionally excluded from normal
+unit/integration builds and runs in its own CI job.
 
 ## Deploying
 

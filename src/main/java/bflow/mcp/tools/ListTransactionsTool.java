@@ -1,6 +1,6 @@
 package bflow.mcp.tools;
 
-import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.stereotype.Component;
 
 import bflow.mcp.client.BflowApiClient;
@@ -31,7 +31,7 @@ public class ListTransactionsTool {
      * they belong to, most recent first (API default sort/page size).
      * @return the raw JSON body returned by BFlow's API.
      */
-    @Tool(description = "Lists the current user's transactions "
+    @McpTool(description = "Lists the current user's transactions "
             + "(expenses, incomes, transfers) across all their wallets.")
     @RequiresScope("bflow-mcp/transactions.read")
     public String listTransactions() {

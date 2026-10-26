@@ -7,7 +7,7 @@ import org.aopalliance.intercept.MethodInvocation;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
-import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Configuration;
@@ -18,10 +18,13 @@ import org.springframework.web.client.ResourceAccessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+
+import bflow.mcp.i18n.MessageService;
+import bflow.mcp.security.RequiresScope;
 
 /**
- * Wraps every {@code @Tool}-annotated method and translates any
+ * Wraps every {@code @McpTool}-annotated method and translates any
  * exception it throws — including one thrown by
  * {@link bflow.mcp.security.RequiresScopeAspect}'s scope check, which
  * runs "inside" this advice, see its lower {@code @Order} — into the
@@ -46,18 +49,32 @@ public class ToolErrorHandlingAspect {
     private static final int ADVISOR_ORDER = 0;
 
     /** Serializes {@link ToolError} to the JSON string tools return. */
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    /** Resolves visible errors for the active request locale. */
+    private final MessageService messageService;
+
+    /**
+     * Creates the error translation advice.
+     * @param objectMapper JSON serializer supplied by Spring.
+     * @param messageService request-localized message facade.
+     */
+    public ToolErrorHandlingAspect(final ObjectMapper objectMapper,
+            final MessageService messageService) {
+        this.objectMapper = objectMapper;
+        this.messageService = messageService;
+    }
 
     /**
      * Wires the interceptor to every method annotated with
-     * Spring AI's {@code @Tool}.
+     * Spring AI's {@code @McpTool}.
      * @return the advisor Spring registers against matching beans.
      */
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public DefaultPointcutAdvisor toolErrorHandlingAdvisor() {
         AnnotationMatchingPointcut pointcut =
-                new AnnotationMatchingPointcut(null, Tool.class);
+                new AnnotationMatchingPointcut(null, McpTool.class);
         DefaultPointcutAdvisor advisor =
                 new DefaultPointcutAdvisor(pointcut, errorHandlingInterceptor());
         advisor.setOrder(ADVISOR_ORDER);
@@ -78,18 +95,19 @@ public class ToolErrorHandlingAspect {
         LOG.warn("Tool '{}' failed: {}", method.getName(), ex.toString());
 
         if (ex instanceof AccessDeniedException) {
+            RequiresScope requiredScope = method.getAnnotation(RequiresScope.class);
+            String scope = requiredScope == null ? ""
+                    : requiredScope.value();
             return new ToolError(
                     "SCOPE_DENIED",
-                    "This action requires a permission that wasn't "
-                            + "granted for this connection.",
+                    messageService.get("tool.error.scopeDenied", scope),
                     false);
         }
 
         if (ex instanceof IllegalArgumentException) {
             return new ToolError(
                     "VALIDATION_ERROR",
-                    ex.getMessage() != null ? ex.getMessage()
-                            : "The request was invalid.",
+                    messageService.get("tool.error.validation"),
                     false);
         }
 
@@ -100,14 +118,13 @@ public class ToolErrorHandlingAspect {
         if (ex instanceof ResourceAccessException) {
             return new ToolError(
                     "UPSTREAM_UNAVAILABLE",
-                    "Could not reach BFlow right now. Please try again "
-                            + "shortly.",
+                    messageService.get("tool.error.upstreamUnavailable"),
                     true);
         }
 
         return new ToolError(
                 "INTERNAL_ERROR",
-                "Something went wrong processing this request.",
+                messageService.get("tool.error.internal"),
                 false);
     }
 
@@ -118,38 +135,33 @@ public class ToolErrorHandlingAspect {
             case 400 -> new ToolError(
                     "VALIDATION_ERROR",
                     upstreamMessage != null ? upstreamMessage
-                            : "The request was rejected as invalid.",
+                            : messageService.get("tool.error.validation"),
                     false);
             case 401 -> new ToolError(
                     "UNAUTHENTICATED",
-                    "The session is no longer valid. Please "
-                            + "reconnect and try again.",
+                    messageService.get("tool.error.unauthenticated"),
                     false);
             case 403 -> new ToolError(
                     "RESOURCE_ACCESS_DENIED",
-                    "The authenticated user does not have permission "
-                            + "for this resource.",
+                    messageService.get("tool.error.resourceAccessDenied"),
                     false);
             case 404 -> new ToolError(
                     "NOT_FOUND",
-                    "The requested resource does not exist.",
+                    messageService.get("tool.error.notFound"),
                     false);
             case 409 -> new ToolError(
                     "CONFLICT",
                     upstreamMessage != null ? upstreamMessage
-                            : "The request conflicts with the current "
-                                    + "state of the resource.",
+                            : messageService.get("tool.error.conflict"),
                     false);
             default -> httpEx.getStatusCode().is5xxServerError()
                     ? new ToolError(
                             "UPSTREAM_UNAVAILABLE",
-                            "BFlow is temporarily unavailable. Please "
-                                    + "try again shortly.",
+                            messageService.get("tool.error.upstreamUnavailable"),
                             true)
                     : new ToolError(
                             "INTERNAL_ERROR",
-                            "Something went wrong processing this "
-                                    + "request.",
+                            messageService.get("tool.error.internal"),
                             false);
         };
     }
@@ -165,7 +177,7 @@ public class ToolErrorHandlingAspect {
         try {
             var node = objectMapper.readTree(responseBody);
             var message = node.get("message");
-            return message != null ? message.asText() : null;
+            return message != null ? message.asStringOpt().orElse(null) : null;
         } catch (Exception parseFailure) {
             return null;
         }
@@ -176,7 +188,8 @@ public class ToolErrorHandlingAspect {
             return objectMapper.writeValueAsString(error);
         } catch (Exception neverHappens) {
             return "{\"code\":\"INTERNAL_ERROR\","
-                    + "\"message\":\"Something went wrong.\","
+                    + "\"message\":\"" + messageService.get(
+                            "tool.error.internal") + "\","
                     + "\"retryable\":false}";
         }
     }

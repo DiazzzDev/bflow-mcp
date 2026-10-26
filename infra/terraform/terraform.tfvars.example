@@ -20,6 +20,10 @@ mcp_public_base_url      = "https://mcp.bflow-studio.com" # must equal BFLOW_MCP
 # dns_sync_enabled       = true # requires the monolith's dns_sync_enabled = true
 # dns_sync_zip_path      = "/path/to/BFlow-Financial-Engine/infra/dns-sync/.build/lambda_function.zip"
 
+# Stops the hosted MCP service daily at 00:00 and starts one task at 08:00
+# in America/El_Salvador. The task definition stays registered.
+# mcp_off_hours_enabled  = true
+
 # Grants xray:PutTraceSegments to the task role (agent is enabled in deploy.yml).
 # otel_traces_enabled    = true
 

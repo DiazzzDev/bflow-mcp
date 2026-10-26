@@ -81,10 +81,10 @@ permanent, not temporary.
    `cognito_scopes` (`infra/terraform/variables.tf`) — or add a new one there if none fits.
 2. Write the tool class in `src/main/java/bflow/mcp/tools/`, following
    any existing one: inject `BflowApiClient`, call the real BFlow
-   endpoint, annotate with `@Tool` and `@RequiresScope`.
+   endpoint, annotate with `@McpTool` and `@RequiresScope`.
 3. If it's a write, inject `ConfirmationGate` too and call
    `checkOrNull(confirmed, ACTION_NAME, previewMap)` before executing —
    every write tool does this, no exceptions.
-4. Register it in `ToolRegistrationConfig`.
-5. Nothing else changes — the AOP chain, error handling, and
-   observability all apply automatically to any `@Tool`-annotated method.
+4. Nothing else changes — Spring AI's MCP annotation scanner registers
+   the tool, while the AOP chain, error handling, and observability all
+   apply automatically to any `@McpTool`-annotated method.
