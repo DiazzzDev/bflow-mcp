@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -47,6 +48,7 @@ class McpAppsUiTest {
                 Browser browser = playwright.chromium().launch(
                         new BrowserType.LaunchOptions().setHeadless(true))) {
             Page page = browser.newPage();
+            List<String> externalRequests = watchExternalRequests(page);
             page.setContent(harness("budgets.html", "dark"));
             Frame app = awaitApp(page, "budgets.html");
 
@@ -79,8 +81,7 @@ class McpAppsUiTest {
                     .contains("25,50");
             assertThat(app.locator("progress").count()).isEqualTo(1);
             assertThat(app.locator("html").getAttribute("data-theme")).isEqualTo("dark");
-            assertThat(page.evaluate("() => window.externalRequests").toString())
-                    .isEqualTo("[]");
+            assertThat(externalRequests).isEmpty();
         }
     }
 
@@ -89,6 +90,7 @@ class McpAppsUiTest {
         try (Playwright playwright = Playwright.create();
                 Browser browser = playwright.chromium().launch()) {
             Page page = browser.newPage();
+            List<String> externalRequests = watchExternalRequests(page);
             page.setContent(harness("confirmation.html", "light"));
             Frame app = awaitApp(page, "confirmation.html");
             sendInput(page, "createTransaction", Map.of("title", "Coffee"));
@@ -104,6 +106,7 @@ class McpAppsUiTest {
                     .press("Enter");
             assertThat(page.evaluate("() => window.calls").toString())
                     .contains("createTransaction").contains("confirmed");
+            assertThat(externalRequests).isEmpty();
         }
     }
 
@@ -112,6 +115,7 @@ class McpAppsUiTest {
         try (Playwright playwright = Playwright.create();
                 Browser browser = playwright.chromium().launch()) {
             Page page = browser.newPage();
+            List<String> externalRequests = watchExternalRequests(page);
             page.setContent(harness("transaction-form.html", "dark"));
             Frame app = awaitApp(page, "transaction-form.html");
             sendResult(page, transactionLabels());
@@ -127,8 +131,7 @@ class McpAppsUiTest {
             assertThat(page.evaluate("() => window.calls").toString())
                     .contains("listWallets").contains("listCategories")
                     .contains("createTransaction");
-            assertThat(page.evaluate("() => window.externalRequests").toString())
-                    .isEqualTo("[]");
+            assertThat(externalRequests).isEmpty();
         }
     }
 
@@ -155,6 +158,17 @@ class McpAppsUiTest {
     private static void post(final Page page, final Map<String, Object> message) {
         page.evaluate("message => document.querySelector('iframe').contentWindow"
                 + ".postMessage(message, '*')", message);
+    }
+
+    private static List<String> watchExternalRequests(final Page page) {
+        List<String> requests = new CopyOnWriteArrayList<>();
+        page.onRequest(request -> {
+            if (!request.url().startsWith(baseUrl)
+                    && !request.url().equals("about:blank")) {
+                requests.add(request.url());
+            }
+        });
+        return requests;
     }
 
     private static Map<String, String> budgetLabels(final String title,
