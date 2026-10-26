@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import tools.jackson.databind.ObjectMapper;
 
 import bflow.mcp.i18n.MessageService;
+import bflow.mcp.security.RequiresScope;
 
 /**
  * Wraps every {@code @McpTool}-annotated method and translates any
@@ -94,9 +95,12 @@ public class ToolErrorHandlingAspect {
         LOG.warn("Tool '{}' failed: {}", method.getName(), ex.toString());
 
         if (ex instanceof AccessDeniedException) {
+            RequiresScope requiredScope = method.getAnnotation(RequiresScope.class);
+            String scope = requiredScope == null ? ""
+                    : requiredScope.value();
             return new ToolError(
                     "SCOPE_DENIED",
-                    messageService.get("tool.error.scopeDenied"),
+                    messageService.get("tool.error.scopeDenied", scope),
                     false);
         }
 

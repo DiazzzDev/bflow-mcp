@@ -77,6 +77,7 @@ class ListWalletsToolIntegrationTest extends AbstractToolIntegrationTest {
 
         assertThat(result)
                 .contains("\"code\":\"SCOPE_DENIED\"")
+                .contains("bflow-mcp/wallets.read")
                 .contains("\"retryable\":false");
         mockBflowApi.verify();
     }

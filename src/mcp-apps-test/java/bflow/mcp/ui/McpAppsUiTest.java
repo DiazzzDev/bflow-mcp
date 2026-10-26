@@ -119,8 +119,12 @@ class McpAppsUiTest {
             page.setContent(harness("transaction-form.html", "dark"));
             Frame app = awaitApp(page, "transaction-form.html");
             sendResult(page, transactionLabels());
+            assertThat(page.evaluate("() => window.calls").toString())
+                    .contains("listWallets").doesNotContain("listCategories");
             sendResult(page, Map.of("data", Map.of("content", List.of(Map.of("id", "w1",
                     "name", "Wallet")))));
+            assertThat(page.evaluate("() => window.calls").toString())
+                    .contains("listCategories");
             sendResult(page, Map.of("data", Map.of("content", List.of(Map.of("id", "c1",
                     "name", "Food")))));
             app.locator("#name").fill("Lunch");
@@ -132,6 +136,52 @@ class McpAppsUiTest {
                     .contains("listWallets").contains("listCategories")
                     .contains("createTransaction");
             assertThat(externalRequests).isEmpty();
+        }
+    }
+
+    @Test
+    void transactionFormShowsWalletScopeErrorAndKeepsCategoryResponseSeparate() {
+        try (Playwright playwright = Playwright.create();
+                Browser browser = playwright.chromium().launch()) {
+            Page page = browser.newPage();
+            page.setContent(harness("transaction-form.html", "light"));
+            Frame app = awaitApp(page, "transaction-form.html");
+            sendResult(page, transactionLabels());
+            sendResult(page, Map.of("content", List.of(Map.of("type", "text",
+                    "text", "{\"code\":\"SCOPE_DENIED\",\"message\":"
+                            + "\"Missing bflow-mcp/wallets.read\","
+                            + "\"retryable\":false}"))));
+            sendResult(page, Map.of("data", Map.of("content", List.of(Map.of("id", "c1",
+                    "name", "Food")))));
+
+            assertThat(app.locator("#wallet-error").innerText())
+                    .contains("bflow-mcp/wallets.read");
+            assertThat(app.locator("#wallet").inputValue()).isEmpty();
+            assertThat(app.locator("#category").inputValue()).isEqualTo("c1");
+            assertThat(app.locator("#submit").isDisabled()).isTrue();
+        }
+    }
+
+    @Test
+    void transactionFormShowsCategoryScopeErrorNextToCategorySelect() {
+        try (Playwright playwright = Playwright.create();
+                Browser browser = playwright.chromium().launch()) {
+            Page page = browser.newPage();
+            page.setContent(harness("transaction-form.html", "light"));
+            Frame app = awaitApp(page, "transaction-form.html");
+            sendResult(page, transactionLabels());
+            sendResult(page, Map.of("data", Map.of("content", List.of(Map.of("id", "w1",
+                    "name", "Wallet")))));
+            sendResult(page, Map.of("content", List.of(Map.of("type", "text",
+                    "text", "{\"code\":\"SCOPE_DENIED\",\"message\":"
+                            + "\"Missing bflow-mcp/categories.read\","
+                            + "\"retryable\":false}"))));
+
+            assertThat(app.locator("#wallet").inputValue()).isEqualTo("w1");
+            assertThat(app.locator("#category-error").innerText())
+                    .contains("bflow-mcp/categories.read");
+            assertThat(app.locator("#category").inputValue()).isEmpty();
+            assertThat(app.locator("#submit").isDisabled()).isTrue();
         }
     }
 
@@ -152,7 +202,7 @@ class McpAppsUiTest {
 
     private static void sendResult(final Page page, final Map<String, Object> result) {
         post(page, Map.of("jsonrpc", "2.0", "method", "ui/notifications/tool-result",
-                "params", Map.of("result", result)));
+                "params", result));
     }
 
     private static void post(final Page page, final Map<String, Object> message) {

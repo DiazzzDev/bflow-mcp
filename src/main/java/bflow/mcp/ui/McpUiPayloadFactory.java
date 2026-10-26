@@ -68,7 +68,11 @@ public class McpUiPayloadFactory {
                 Map.entry("description", messageService.get("ui.transaction.description")),
                 Map.entry("submit", messageService.get("ui.transaction.submit")),
                 Map.entry("empty", messageService.get("ui.transaction.empty")),
-                Map.entry("retry", messageService.get("ui.transaction.retry"))));
+                Map.entry("retry", messageService.get("ui.transaction.retry")),
+                Map.entry("walletEmpty", messageService.get(
+                        "ui.transaction.wallet.empty")),
+                Map.entry("categoryEmpty", messageService.get(
+                        "ui.transaction.category.empty"))));
     }
 
     private String serialize(final String rawData, final Map<String, String> labels) {
