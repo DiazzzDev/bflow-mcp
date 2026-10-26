@@ -65,6 +65,16 @@ https://mcp.bflow-studio.com/mcp
 You'll be asked to log in with your BFlow account the first time — the
 same login (including Google) you already use for BFlow.
 
+#### Optional direct identity-provider sign-in
+
+Set `COGNITO_DEFAULT_IDENTITY_PROVIDER=Google` to have the OAuth proxy add
+Cognito's `identity_provider=Google` parameter when an OAuth client does not
+send one. This skips Cognito Managed Login and redirects straight to Google.
+Leave it empty (the default) to preserve the current login page. If an OAuth
+client sends `identity_provider` itself, its value wins; the proxy forwards it
+once and does not override an explicit client choice. This lets clients select
+another configured provider or deliberately keep Cognito's local login.
+
 #### Hosted availability
 
 When the production cost-saving schedule is enabled, the hosted MCP service is

@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -74,6 +75,9 @@ public class OAuthProxyController {
     private static final Set<String> SUBSTITUTED_PARAMS =
             Set.of("resource", "client_id", "redirect_uri", "state");
 
+    /** Cognito parameter that selects a configured federation provider. */
+    private static final String IDENTITY_PROVIDER_PARAM = "identity_provider";
+
     /** Cognito's Hosted UI domain, e.g. {@code xxx.auth.us-east-1.amazoncognito.com}. */
     private final String hostedUiDomain;
 
@@ -82,6 +86,9 @@ public class OAuthProxyController {
 
     /** The one real, static Cognito App Client id every DCR or CIMD client_id maps to. */
     private final String cognitoAppClientId;
+
+    /** Optional provider used only when the OAuth client does not choose one itself. */
+    private final String defaultIdentityProvider;
 
     private final ProxyTokenCodec tokenCodec;
     private final RedirectUriAllowlist allowlist;
@@ -98,6 +105,9 @@ public class OAuthProxyController {
      * @param cognitoAppClientId the real Cognito App Client id
      *      ({@code bflow-mcp-agent-client}, provisioned by
      *      {@code infra/terraform/cognito.tf}).
+     * @param defaultIdentityProvider optional Cognito identity-provider name to add when
+     *      the OAuth client did not supply {@code identity_provider}; an explicitly
+     *      supplied client value always takes precedence.
      * @param tokenCodec signs/verifies this proxy's own JWTs.
      * @param allowlist the redirect URIs {@link #authorize} will accept,
      *      re-checked here even though {@link ClientRegistrationController}
@@ -117,6 +127,8 @@ public class OAuthProxyController {
             @Value("${bflow.cognito.hosted-ui-domain}") final String hostedUiDomain,
             @Value("${bflow.mcp.public-base-url}") final String publicBaseUrl,
             @Value("${bflow.cognito.app-client-id}") final String cognitoAppClientId,
+            @Value("${bflow.cognito.default-identity-provider:}")
+            final String defaultIdentityProvider,
             final ProxyTokenCodec tokenCodec,
             final RedirectUriAllowlist allowlist,
             final CimdClientAllowlist cimdAllowlist,
@@ -125,6 +137,7 @@ public class OAuthProxyController {
         this.hostedUiDomain = hostedUiDomain;
         this.publicBaseUrl = publicBaseUrl;
         this.cognitoAppClientId = cognitoAppClientId;
+        this.defaultIdentityProvider = defaultIdentityProvider;
         this.tokenCodec = tokenCodec;
         this.allowlist = allowlist;
         this.cimdAllowlist = cimdAllowlist;
@@ -167,6 +180,13 @@ public class OAuthProxyController {
                 target.queryParam(key, value);
             }
         });
+
+        // The OAuth client gets the final say. This optional server default only
+        // bypasses Cognito Managed Login when the client did not choose an IdP.
+        if (StringUtils.hasText(defaultIdentityProvider)
+                && !params.containsKey(IDENTITY_PROVIDER_PARAM)) {
+            target.queryParam(IDENTITY_PROVIDER_PARAM, defaultIdentityProvider);
+        }
 
         target.queryParam("client_id", cognitoAppClientId);
         target.queryParam("redirect_uri", cognitoFacingCallbackUri());

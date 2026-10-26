@@ -55,6 +55,8 @@ jobs:
           COGNITO_ISSUER_URI: ${{ vars.COGNITO_ISSUER_URI }}
           COGNITO_HOSTED_UI_DOMAIN: ${{ vars.COGNITO_HOSTED_UI_DOMAIN }}
           COGNITO_APP_CLIENT_ID: ${{ vars.COGNITO_APP_CLIENT_ID }}
+          # Optional: empty or unset keeps Cognito Managed Login as-is.
+          COGNITO_DEFAULT_IDENTITY_PROVIDER: ${{ vars.COGNITO_DEFAULT_IDENTITY_PROVIDER }}
           BFLOW_API_BASE_URL: ${{ vars.BFLOW_API_BASE_URL }}
           BFLOW_MCP_PUBLIC_BASE_URL: ${{ vars.BFLOW_MCP_PUBLIC_BASE_URL }}
           BFLOW_MCP_PROXY_SIGNING_SECRET: ${{ secrets.BFLOW_MCP_PROXY_SIGNING_SECRET }}
