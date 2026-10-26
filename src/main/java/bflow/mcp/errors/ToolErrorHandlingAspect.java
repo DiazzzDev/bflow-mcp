@@ -177,7 +177,7 @@ public class ToolErrorHandlingAspect {
         try {
             var node = objectMapper.readTree(responseBody);
             var message = node.get("message");
-            return message != null ? message.asText() : null;
+            return message != null ? message.asStringOpt().orElse(null) : null;
         } catch (Exception parseFailure) {
             return null;
         }

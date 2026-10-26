@@ -67,8 +67,9 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
                 + "\"capabilities\":{},\"clientInfo\":{"
                 + "\"name\":\"bflow-mcp-integration-test\","
                 + "\"version\":\"1.0\"}}}");
-        assertThat(initialize.path("result").path("protocolVersion").asText())
-                .isEqualTo("2025-06-18");
+        assertThat(initialize.path("result").path("protocolVersion").asStringOpt())
+                .as("MCP initialize protocolVersion: %s", initialize)
+                .contains("2025-06-18");
 
         post("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
         JsonNode toolsResponse = post("{\"jsonrpc\":\"2.0\",\"id\":2,"
@@ -79,13 +80,19 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
         Set<String> namesWithUi = new java.util.HashSet<>();
         Set<String> toolNames = new java.util.HashSet<>();
         for (JsonNode tool : tools) {
-            String toolName = tool.path("name").asText();
+            String toolName = tool.path("name").asStringOpt().orElse(null);
+            assertThat(toolName)
+                    .as("MCP tool name in tools/list JSON: %s", tool)
+                    .isNotNull()
+                    .isNotBlank();
             toolNames.add(toolName);
             JsonNode uiMeta = tool.path("_meta").path("ui");
             if (!uiMeta.isMissingNode() && !uiMeta.isNull()) {
-                String resourceUri = uiMeta.path("resourceUri").asText();
+                String resourceUri = uiMeta.path("resourceUri").asStringOpt().orElse(null);
                 assertThat(resourceUri)
                         .as("MCP tools/list JSON: %s", toolsResponse)
+                        .isNotNull()
+                        .isNotBlank()
                         .startsWith("ui://");
                 assertThat(UI_RESOURCE_URIS).contains(resourceUri);
                 namesWithUi.add(toolName);
@@ -99,14 +106,14 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
                                 readResponse)
                         .isTrue();
                 JsonNode matchingContent = findContent(contents, resourceUri);
-                assertThat(matchingContent.path("mimeType").asText())
+                assertThat(matchingContent.path("mimeType").asStringOpt())
                         .as("MCP resources/read JSON for %s: %s", resourceUri,
                                 readResponse)
-                        .isEqualTo("text/html;profile=mcp-app");
-                assertThat(matchingContent.path("text").asText())
+                        .contains("text/html;profile=mcp-app");
+                assertThat(matchingContent.path("text").asStringOpt())
                         .as("MCP resources/read JSON for %s: %s", resourceUri,
                                 readResponse)
-                        .isNotBlank();
+                        .hasValueSatisfying(value -> assertThat(value).isNotBlank());
             }
         }
 
@@ -118,7 +125,8 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
                 .containsAll(UI_TOOL_NAMES)
                 .containsAll(TEXT_ONLY_TOOL_NAMES);
         for (JsonNode tool : tools) {
-            if (TEXT_ONLY_TOOL_NAMES.contains(tool.path("name").asText())) {
+            String toolName = tool.path("name").asStringOpt().orElse(null);
+            if (toolName != null && TEXT_ONLY_TOOL_NAMES.contains(toolName)) {
                 assertThat(tool.path("_meta").path("ui").isMissingNode()
                         || tool.path("_meta").path("ui").isNull())
                         .as("text-only tool must not expose _meta.ui: %s; tools/list: %s",
@@ -165,7 +173,7 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
 
     private JsonNode findContent(final JsonNode contents, final String resourceUri) {
         for (JsonNode content : contents) {
-            if (resourceUri.equals(content.path("uri").asText())) {
+            if (resourceUri.equals(content.path("uri").asStringOpt().orElse(null))) {
                 return content;
             }
         }
