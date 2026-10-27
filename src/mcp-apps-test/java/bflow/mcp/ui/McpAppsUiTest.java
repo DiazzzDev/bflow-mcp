@@ -138,6 +138,8 @@ class McpAppsUiTest {
             page.setContent(harness("transaction-form.html", "dark"));
             Frame app = awaitApp(page, "transaction-form.html");
             sendResult(page, transactionLabels());
+            page.waitForFunction("() => window.calls.some(call => "
+                    + "call.name === 'listWallets')");
             assertThat(page.evaluate("() => JSON.stringify(window.calls)").toString())
                     .contains("listWallets").doesNotContain("listCategories");
             sendToolResponse(page, "listWallets", Map.of("data", Map.of("content",
@@ -145,6 +147,8 @@ class McpAppsUiTest {
                                     "defaultWallet", false),
                             Map.of("id", "w-default", "name", "Default wallet",
                                     "defaultWallet", true)))));
+            page.waitForFunction("() => window.calls.some(call => "
+                    + "call.name === 'listCategories')");
             assertThat(page.evaluate("() => JSON.stringify(window.calls)").toString())
                     .contains("listCategories");
             sendToolResponse(page, "listCategories", Map.of("data", Map.of("content",
