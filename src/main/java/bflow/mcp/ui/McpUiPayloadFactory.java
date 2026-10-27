@@ -51,7 +51,7 @@ public class McpUiPayloadFactory {
                 "progressUnavailable", messageService.get(
                         "ui.budgets.progressUnavailable"));
         Object data = readBudgetData(rawBudgets, labels.get("progressUnavailable"));
-        return serialize(data, labels,
+        return serializePayload(data, labels,
                 messageService.get("ui.budgets.progressUnavailable.detail"));
     }
 
@@ -87,10 +87,10 @@ public class McpUiPayloadFactory {
 
     private String serialize(final String rawData, final Map<String, String> labels,
             final String fallbackText) {
-        return serialize(readOrText(rawData), labels, fallbackText);
+        return serializePayload(readOrText(rawData), labels, fallbackText);
     }
 
-    private String serialize(final Object data, final Map<String, String> labels,
+    private String serializePayload(final Object data, final Map<String, String> labels,
             final String fallbackText) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("locale", LocaleContextHolder.getLocale().toLanguageTag());
