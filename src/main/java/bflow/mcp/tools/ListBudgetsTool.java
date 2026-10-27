@@ -38,7 +38,10 @@ public class ListBudgetsTool {
     @McpTool(title = "List budgets",
             description = "Show the user's budgets across every wallet. Use "
                     + "this to answer questions about budget limits; progress "
-                    + "fields may be null in the list response.",
+                    + "fields may be null in the list response. Interpret "
+                    + "DAILY, WEEKLY, MONTHLY and YEARLY as recurrence "
+                    + "periods and present them in the user's language; "
+                    + "never show the raw enum value.",
             annotations = @McpTool.McpAnnotations(title = "List budgets",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false),

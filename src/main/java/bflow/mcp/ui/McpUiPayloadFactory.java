@@ -39,17 +39,22 @@ public class McpUiPayloadFactory {
      * @return a useful JSON fallback and MCP App payload.
      */
     public String budgets(final String rawBudgets) {
-        Map<String, String> labels = Map.of(
-                "title", messageService.get("ui.budgets.title"),
-                "empty", messageService.get("ui.budgets.empty"),
-                "loading", messageService.get("ui.budgets.loading"),
-                "retry", messageService.get("ui.budgets.retry"),
-                "progress", messageService.get("ui.budgets.progress"),
-                "spent", messageService.get("ui.budgets.spent"),
-                "remaining", messageService.get("ui.budgets.remaining"),
-                "limit", messageService.get("ui.budgets.limit"),
-                "progressUnavailable", messageService.get(
-                        "ui.budgets.progressUnavailable"));
+        Map<String, String> labels = Map.ofEntries(
+                Map.entry("title", messageService.get("ui.budgets.title")),
+                Map.entry("empty", messageService.get("ui.budgets.empty")),
+                Map.entry("loading", messageService.get("ui.budgets.loading")),
+                Map.entry("retry", messageService.get("ui.budgets.retry")),
+                Map.entry("progress", messageService.get("ui.budgets.progress")),
+                Map.entry("spent", messageService.get("ui.budgets.spent")),
+                Map.entry("remaining", messageService.get("ui.budgets.remaining")),
+                Map.entry("limit", messageService.get("ui.budgets.limit")),
+                Map.entry("periodDaily", messageService.get("ui.budgets.period.daily")),
+                Map.entry("periodWeekly", messageService.get("ui.budgets.period.weekly")),
+                Map.entry("periodMonthly", messageService.get("ui.budgets.period.monthly")),
+                Map.entry("periodYearly", messageService.get("ui.budgets.period.yearly")),
+                Map.entry("periodUnknown", messageService.get("ui.budgets.period.unknown")),
+                Map.entry("progressUnavailable", messageService.get(
+                        "ui.budgets.progressUnavailable")));
         Object data = readBudgetData(rawBudgets, labels.get("progressUnavailable"));
         return serializePayload(data, labels,
                 messageService.get("ui.budgets.progressUnavailable.detail"));
@@ -64,6 +69,8 @@ public class McpUiPayloadFactory {
                 Map.entry("title", messageService.get("ui.transaction.title")),
                 Map.entry("loading", messageService.get("ui.transaction.loading")),
                 Map.entry("type", messageService.get("ui.transaction.type")),
+                Map.entry("typeAccessible", messageService.get(
+                        "ui.transaction.type.accessible")),
                 Map.entry("expense", messageService.get("ui.transaction.type.expense")),
                 Map.entry("income", messageService.get("ui.transaction.type.income")),
                 Map.entry("name", messageService.get("ui.transaction.name")),
@@ -72,6 +79,20 @@ public class McpUiPayloadFactory {
                 Map.entry("wallet", messageService.get("ui.transaction.wallet")),
                 Map.entry("category", messageService.get("ui.transaction.category")),
                 Map.entry("description", messageService.get("ui.transaction.description")),
+                Map.entry("optional", messageService.get("ui.transaction.optional")),
+                Map.entry("namePlaceholder", messageService.get(
+                        "ui.transaction.name.placeholder")),
+                Map.entry("amountPlaceholder", messageService.get(
+                        "ui.transaction.amount.placeholder")),
+                Map.entry("dateExample", messageService.get(
+                        "ui.transaction.date.example")),
+                Map.entry("descriptionPlaceholder", messageService.get(
+                        "ui.transaction.description.placeholder")),
+                Map.entry("today", messageService.get("ui.transaction.date.today")),
+                Map.entry("yesterday", messageService.get(
+                        "ui.transaction.date.yesterday")),
+                Map.entry("optionLoadError", messageService.get(
+                        "ui.transaction.options.error")),
                 Map.entry("submit", messageService.get("ui.transaction.submit")),
                 Map.entry("empty", messageService.get("ui.transaction.empty")),
                 Map.entry("retry", messageService.get("ui.transaction.retry")),

@@ -75,7 +75,8 @@ class McpAppsUiTest {
 
             sendResultJson(page, "{\"locale\":\"es\",\"labels\":"
                     + "{\"title\":\"Presupuestos\",\"progressUnavailable\":"
-                    + "\"Sin datos de progreso\",\"spent\":\"Gastado\","
+                    + "\"Sin datos de progreso\",\"periodMonthly\":\"Mensual\","
+                    + "\"periodUnknown\":\"Otro periodo\",\"spent\":\"Gastado\","
                     + "\"remaining\":\"Restante\",\"limit\":\"Límite\"},"
                     + "\"data\":{\"content\":[{\"period\":\"MONTHLY\","
                     + "\"currency\":\"USD\",\"spent\":null,"
@@ -83,7 +84,7 @@ class McpAppsUiTest {
                     + "\"percentage\":null}]}}");
             app.getByText("Sin datos de progreso").waitFor();
             assertThat(app.locator("body").innerText()).contains("Sin datos de progreso")
-                    .contains("—");
+                    .contains("—").contains("Mensual").doesNotContain("MONTHLY");
             assertThat(app.locator("progress").count()).isZero();
 
             sendResult(page, Map.of("locale", "es", "labels", budgetLabels(
@@ -137,14 +138,46 @@ class McpAppsUiTest {
             page.setContent(harness("transaction-form.html", "dark"));
             Frame app = awaitApp(page, "transaction-form.html");
             sendResult(page, transactionLabels());
-            assertThat(page.evaluate("() => window.calls").toString())
+            assertThat(page.evaluate("() => JSON.stringify(window.calls)").toString())
                     .contains("listWallets").doesNotContain("listCategories");
-            sendResult(page, Map.of("data", Map.of("content", List.of(Map.of("id", "w1",
-                    "name", "Wallet")))));
-            assertThat(page.evaluate("() => window.calls").toString())
+            sendToolResponse(page, "listWallets", Map.of("data", Map.of("content",
+                    List.of(Map.of("id", "w1", "name", "Other wallet",
+                                    "defaultWallet", false),
+                            Map.of("id", "w-default", "name", "Default wallet",
+                                    "defaultWallet", true)))));
+            assertThat(page.evaluate("() => JSON.stringify(window.calls)").toString())
                     .contains("listCategories");
-            sendResult(page, Map.of("data", Map.of("content", List.of(Map.of("id", "c1",
-                    "name", "Food")))));
+            sendToolResponse(page, "listCategories", Map.of("data", Map.of("content",
+                    List.of(Map.of("id", "c1", "name", "Food", "type", "EXPENSE"),
+                            Map.of("id", "c2", "name", "Salary", "type", "INCOME")))));
+            assertThat(app.locator("#status").innerText()).isEmpty();
+            assertThat(app.locator("main").getAttribute("aria-busy")).isEqualTo("false");
+            assertThat(app.locator("#wallet").inputValue()).isEqualTo("w-default");
+            assertThat(app.locator("#category").inputValue()).isEqualTo("c1");
+            assertThat(app.locator("#expense").getAttribute("aria-pressed"))
+                    .isEqualTo("true");
+            assertThat(app.locator("#type-label").count()).isZero();
+            assertThat(app.locator("#name").getAttribute("placeholder"))
+                    .isEqualTo("E.g. Lunch");
+            assertThat(app.locator("#description-optional").innerText())
+                    .isEqualTo("(optional)");
+            assertThat(app.locator("#description").evaluate("e => getComputedStyle(e).resize"))
+                    .isEqualTo("none");
+            String expectedToday = (String) app.evaluate("() => {const d=new Date();"
+                    + "d.setMinutes(d.getMinutes()-d.getTimezoneOffset());"
+                    + "return d.toISOString().slice(0,10)}");
+            assertThat(app.locator("#date").inputValue()).isEqualTo(expectedToday);
+            app.locator("#yesterday").click();
+            String expectedYesterday = (String) app.evaluate("() => {const d=new Date();"
+                    + "d.setDate(d.getDate()-1);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());"
+                    + "return d.toISOString().slice(0,10)}");
+            assertThat(app.locator("#date").inputValue()).isEqualTo(expectedYesterday);
+            app.locator("#today").click();
+            assertThat(app.locator("#date").inputValue()).isEqualTo(expectedToday);
+            app.locator("#income").click();
+            assertThat(app.locator("#income").getAttribute("aria-pressed"))
+                    .isEqualTo("true");
+            assertThat(app.locator("#category").inputValue()).isEqualTo("c2");
             app.locator("#name").fill("Lunch");
             app.locator("#amount").fill("12.50");
             app.locator("#date").fill("2026-10-25");
@@ -153,9 +186,11 @@ class McpAppsUiTest {
             page.waitForFunction("() => window.calls.some(call => "
                     + "call.name === 'createTransaction')");
 
-            assertThat(page.evaluate("() => window.calls").toString())
+            assertThat(page.evaluate("() => JSON.stringify(window.calls)").toString())
                     .contains("listWallets").contains("listCategories")
                     .contains("createTransaction");
+            assertThat(page.evaluate("() => JSON.stringify(window.calls)").toString())
+                    .contains("INCOME").contains("w-default").contains("c2");
             assertThat(externalRequests).isEmpty();
         }
     }
@@ -168,12 +203,10 @@ class McpAppsUiTest {
             page.setContent(harness("transaction-form.html", "light"));
             Frame app = awaitApp(page, "transaction-form.html");
             sendResult(page, transactionLabels());
-            sendResult(page, Map.of("content", List.of(Map.of("type", "text",
-                    "text", "{\"code\":\"SCOPE_DENIED\",\"message\":"
-                            + "\"Missing bflow-mcp/wallets.read\","
-                            + "\"retryable\":false}"))));
-            sendResult(page, Map.of("data", Map.of("content", List.of(Map.of("id", "c1",
-                    "name", "Food")))));
+            sendToolResponse(page, "listWallets", Map.of("code", "SCOPE_DENIED",
+                    "message", "Missing bflow-mcp/wallets.read", "retryable", false));
+            sendToolResponse(page, "listCategories", Map.of("data", Map.of("content",
+                    List.of(Map.of("id", "c1", "name", "Food")))));
 
             assertThat(app.locator("#wallet-error").innerText())
                     .contains("bflow-mcp/wallets.read");
@@ -191,12 +224,10 @@ class McpAppsUiTest {
             page.setContent(harness("transaction-form.html", "light"));
             Frame app = awaitApp(page, "transaction-form.html");
             sendResult(page, transactionLabels());
-            sendResult(page, Map.of("data", Map.of("content", List.of(Map.of("id", "w1",
-                    "name", "Wallet")))));
-            sendResult(page, Map.of("content", List.of(Map.of("type", "text",
-                    "text", "{\"code\":\"SCOPE_DENIED\",\"message\":"
-                            + "\"Missing bflow-mcp/categories.read\","
-                            + "\"retryable\":false}"))));
+            sendToolResponse(page, "listWallets", Map.of("data", Map.of("content",
+                    List.of(Map.of("id", "w1", "name", "Wallet")))));
+            sendToolResponse(page, "listCategories", Map.of("code", "SCOPE_DENIED",
+                    "message", "Missing bflow-mcp/categories.read", "retryable", false));
 
             assertThat(app.locator("#wallet").inputValue()).isEqualTo("w1");
             assertThat(app.locator("#category-error").innerText())
@@ -243,6 +274,14 @@ class McpAppsUiTest {
                 "params", result));
     }
 
+    private static void sendToolResponse(final Page page, final String toolName,
+            final Map<String, Object> result) {
+        page.waitForFunction("name => window.toolRequests.some(request => "
+                + "request.params.name === name && !request.replied)", toolName);
+        page.evaluate("response => window.reply(response.name, response.result)",
+                Map.of("name", toolName, "result", result));
+    }
+
     private static void sendResultJson(final Page page, final String json) {
         page.waitForFunction("() => window.initialized === true");
         page.evaluate("json => document.querySelector('iframe').contentWindow"
@@ -268,28 +307,45 @@ class McpAppsUiTest {
 
     private static Map<String, String> budgetLabels(final String title,
             final String loading, final String empty, final String retry) {
-        return Map.of("title", title, "loading", loading, "empty", empty,
-                "retry", retry, "progress", "Progress",
-                "progressUnavailable", "Sin datos de progreso", "spent", "Spent",
-                "remaining", "Remaining", "limit", "Limit");
+        boolean spanish = "Presupuestos".equals(title);
+        return Map.ofEntries(Map.entry("title", title), Map.entry("loading", loading),
+                Map.entry("empty", empty), Map.entry("retry", retry),
+                Map.entry("progress", "Progress"),
+                Map.entry("progressUnavailable", "Sin datos de progreso"),
+                Map.entry("spent", "Spent"), Map.entry("remaining", "Remaining"),
+                Map.entry("limit", "Limit"),
+                Map.entry("periodDaily", spanish ? "Diario" : "Daily"),
+                Map.entry("periodWeekly", spanish ? "Semanal" : "Weekly"),
+                Map.entry("periodMonthly", spanish ? "Mensual" : "Monthly"),
+                Map.entry("periodYearly", spanish ? "Anual" : "Yearly"),
+                Map.entry("periodUnknown", spanish ? "Otro periodo" : "Other period"));
     }
 
     private static Map<String, Object> transactionLabels() {
         return Map.of("locale", "en", "labels", Map.ofEntries(
                 Map.entry("title", "New transaction"),
                 Map.entry("loading", "Loading options…"), Map.entry("type", "Type"),
+                Map.entry("typeAccessible", "Transaction type"),
                 Map.entry("expense", "Expense"), Map.entry("income", "Income"),
                 Map.entry("name", "Title"), Map.entry("amount", "Amount"),
                 Map.entry("date", "Date"), Map.entry("wallet", "Wallet"),
                 Map.entry("category", "Category"),
                 Map.entry("description", "Description"),
+                Map.entry("optional", "(optional)"),
+                Map.entry("namePlaceholder", "E.g. Lunch"),
+                Map.entry("amountPlaceholder", "E.g. 12.50"),
+                Map.entry("dateExample", "E.g. 10/26/2026"),
+                Map.entry("descriptionPlaceholder", "Add a note if needed"),
+                Map.entry("today", "Today"), Map.entry("yesterday", "Yesterday"),
+                Map.entry("optionLoadError", "Could not load the options."),
                 Map.entry("submit", "Continue"), Map.entry("empty", "No options"),
                 Map.entry("retry", "Retry")), "data", Map.of());
     }
 
     private static String harness(final String resource, final String theme) {
         return "<iframe src='" + baseUrl + "/" + resource + "'></iframe>"
-                + "<script>window.calls=[];window.protocolErrors=[];window.initialized=false;"
+                + "<script>window.calls=[];window.toolRequests=[];window.protocolErrors=[];window.initialized=false;"
+                + "window.reply=(name,result)=>{const request=window.toolRequests.find(item=>item.params.name===name&&!item.replied);if(!request)throw Error('No pending '+name+' request');request.replied=true;document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:request.id,result:{content:[{type:'text',text:JSON.stringify(result)}]}},'*')};"
                 + "window.sizeChanged=0;window.addEventListener('message',e=>{const d=e.data||{};"
                 + "if(d.method==='ui/initialize'){if(!d.params?.appInfo)window.protocolErrors.push('missing appInfo');"
                 + "if(!d.params?.protocolVersion)window.protocolErrors.push('missing protocolVersion');"
@@ -302,7 +358,7 @@ class McpAppsUiTest {
                 + "setTimeout(()=>{if(window.sizeChanged===0)window.protocolErrors.push('missing ui/notifications/size-changed')},200)}"
                 + "if(d.method==='ui/notifications/size-changed')window.sizeChanged++;"
                 + "if((d.method==='ui/notifications/tool-input'||d.method==='ui/notifications/tool-result')&&!window.initialized)window.protocolErrors.push('host sent app data before initialized');"
-                + "if(d.method==='tools/call'){if(!window.initialized)window.protocolErrors.push('app called a tool before initialized');if(!('id'in d))window.protocolErrors.push('tools/call must be a request');window.calls.push(d.params)}});</script>";
+                + "if(d.method==='tools/call'){if(!window.initialized)window.protocolErrors.push('app called a tool before initialized');if(!('id'in d))window.protocolErrors.push('tools/call must be a request');window.calls.push(d.params);window.toolRequests.push({id:d.id,params:d.params,replied:false})}});</script>";
     }
 
     private static void assertProtocolHealthy(final Page page) {
