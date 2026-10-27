@@ -10,9 +10,12 @@ spring:
         type: SYNC
         protocol: STREAMABLE
         instructions: >
-          Tools that act on a BFlow user's own wallets, transactions,
-          budgets and recurring items, on their behalf. Every call is
-          scoped to the authenticated user's own data.
+          BFlow is the user's personal finance app. Query the user's
+          budgets, transactions, wallets and categories directly with
+          these tools when asked; do not ask the host app for confirmation
+          before reading them. Every call is scoped to the authenticated
+          user's own data. Write tools return a preview and require the
+          user's confirmation before making changes.
   security:
     oauth2:
       resourceserver:

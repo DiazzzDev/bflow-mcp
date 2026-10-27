@@ -73,6 +73,19 @@ class McpAppsUiTest {
             assertThat(page.evaluate("() => window.calls").toString())
                     .contains("listBudgets");
 
+            sendResultJson(page, "{\"locale\":\"es\",\"labels\":"
+                    + "{\"title\":\"Presupuestos\",\"progressUnavailable\":"
+                    + "\"Sin datos de progreso\",\"spent\":\"Gastado\","
+                    + "\"remaining\":\"Restante\",\"limit\":\"Límite\"},"
+                    + "\"data\":{\"content\":[{\"period\":\"MONTHLY\","
+                    + "\"currency\":\"USD\",\"spent\":null,"
+                    + "\"remaining\":null,\"budgetLimit\":100,"
+                    + "\"percentage\":null}]}}");
+            app.getByText("Sin datos de progreso").waitFor();
+            assertThat(app.locator("body").innerText()).contains("Sin datos de progreso")
+                    .contains("—");
+            assertThat(app.locator("progress").count()).isZero();
+
             sendResult(page, Map.of("locale", "es", "labels", budgetLabels(
                     "Presupuestos", "Cargando presupuestos…",
                     "No hay presupuestos para mostrar.", "Reintentar"),
@@ -193,9 +206,26 @@ class McpAppsUiTest {
         }
     }
 
+    @Test
+    void previousHtmlFailsTheProtocolHarness() {
+        try (Playwright playwright = Playwright.create();
+                Browser browser = playwright.chromium().launch(
+                        new BrowserType.LaunchOptions().setHeadless(true))) {
+            Page page = browser.newPage();
+            page.setContent(harness("budgets-legacy.html", "dark"));
+            page.waitForFunction("() => window.initialized === true");
+            page.waitForTimeout(300);
+            assertThat(page.evaluate("() => window.protocolErrors").toString())
+                    .contains("missing appInfo", "missing protocolVersion",
+                            "notification ui/notifications/initialized must not have id",
+                            "missing ui/notifications/size-changed");
+        }
+    }
+
     private static Frame awaitApp(final Page page, final String resource) {
         page.waitForFunction("() => document.querySelector('iframe') !== null");
-        page.waitForTimeout(100);
+        page.waitForFunction("() => window.initialized && window.sizeChanged > 0");
+        assertProtocolHealthy(page);
         return page.frames().stream()
                 .filter(frame -> frame.url().endsWith(resource))
                 .findFirst()
@@ -208,8 +238,16 @@ class McpAppsUiTest {
     }
 
     private static void sendResult(final Page page, final Map<String, Object> result) {
+        page.waitForFunction("() => window.initialized === true");
         post(page, Map.of("jsonrpc", "2.0", "method", "ui/notifications/tool-result",
                 "params", result));
+    }
+
+    private static void sendResultJson(final Page page, final String json) {
+        page.waitForFunction("() => window.initialized === true");
+        page.evaluate("json => document.querySelector('iframe').contentWindow"
+                + ".postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',"
+                + "params:JSON.parse(json)}, '*')", json);
     }
 
     private static void post(final Page page, final Map<String, Object> message) {
@@ -231,7 +269,8 @@ class McpAppsUiTest {
     private static Map<String, String> budgetLabels(final String title,
             final String loading, final String empty, final String retry) {
         return Map.of("title", title, "loading", loading, "empty", empty,
-                "retry", retry, "progress", "Progress", "spent", "Spent",
+                "retry", retry, "progress", "Progress",
+                "progressUnavailable", "Sin datos de progreso", "spent", "Spent",
                 "remaining", "Remaining", "limit", "Limit");
     }
 
@@ -250,11 +289,26 @@ class McpAppsUiTest {
 
     private static String harness(final String resource, final String theme) {
         return "<iframe src='" + baseUrl + "/" + resource + "'></iframe>"
-                + "<script>window.calls=[];window.externalRequests=[];"
-                + "window.addEventListener('message',e=>{const d=e.data||{};"
-                + "if(d.method==='ui/initialize'){e.source.postMessage({id:d.id,"
-                + "result:{hostContext:{theme:'" + theme + "'}}},'*')}"
-                + "if(d.method==='tools/call'){window.calls.push(d.params)}});</script>";
+                + "<script>window.calls=[];window.protocolErrors=[];window.initialized=false;"
+                + "window.sizeChanged=0;window.addEventListener('message',e=>{const d=e.data||{};"
+                + "if(d.method==='ui/initialize'){if(!d.params?.appInfo)window.protocolErrors.push('missing appInfo');"
+                + "if(!d.params?.protocolVersion)window.protocolErrors.push('missing protocolVersion');"
+                + "if(!d.params?.appCapabilities)window.protocolErrors.push('missing appCapabilities');"
+                + "e.source.postMessage({jsonrpc:'2.0',id:d.id,result:{protocolVersion:'2026-01-26',"
+                + "hostCapabilities:{},hostInfo:{name:'basic-host',version:'1.0.0'},"
+                + "hostContext:{theme:'" + theme + "'}}},'*')}"
+                + "if(d.method?.startsWith('ui/notifications/')&&'id'in d)window.protocolErrors.push('notification '+d.method+' must not have id');"
+                + "if(d.method==='ui/notifications/initialized'){window.initialized=true;"
+                + "setTimeout(()=>{if(window.sizeChanged===0)window.protocolErrors.push('missing ui/notifications/size-changed')},200)}"
+                + "if(d.method==='ui/notifications/size-changed')window.sizeChanged++;"
+                + "if((d.method==='ui/notifications/tool-input'||d.method==='ui/notifications/tool-result')&&!window.initialized)window.protocolErrors.push('host sent app data before initialized');"
+                + "if(d.method==='tools/call'){if(!window.initialized)window.protocolErrors.push('app called a tool before initialized');if(!('id'in d))window.protocolErrors.push('tools/call must be a request');window.calls.push(d.params)}});</script>";
+    }
+
+    private static void assertProtocolHealthy(final Page page) {
+        assertThat(page.evaluate("() => window.protocolErrors").toString())
+                .as("MCP Apps protocol violations")
+                .isEqualTo("[]");
     }
 
     private static void serveResource(final HttpExchange exchange) throws IOException {

@@ -35,8 +35,13 @@ public class ListBudgetsTool {
      * Lists the authenticated user's budgets (API default page/sort).
      * @return the raw JSON body returned by BFlow's API.
      */
-    @McpTool(description = "Lists the current user's budgets, across all "
-            + "their wallets. Hosts without MCP Apps receive localized JSON.",
+    @McpTool(title = "List budgets",
+            description = "Show the user's budgets across every wallet. Use "
+                    + "this to answer questions about budget limits; progress "
+                    + "fields may be null in the list response.",
+            annotations = @McpTool.McpAnnotations(title = "List budgets",
+                    readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
             metaProvider = BudgetUiMetaProvider.class)
     @RequiresScope("bflow-mcp/budgets.read")
     public String listBudgets() {

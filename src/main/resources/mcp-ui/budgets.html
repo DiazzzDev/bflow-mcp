@@ -20,18 +20,43 @@
 <script>
 (() => {
   const root = document.documentElement, main = document.querySelector('main'), title = document.querySelector('#title'), content = document.querySelector('#content');
-  let labels = {}, locale = 'es', sequence = 0;
-  const emit = (method, params) => parent.postMessage({jsonrpc:'2.0', id: ++sequence, method, params}, '*');
+  let labels = {}, locale = 'es', sequence = 0, initializeId = null, initialized = false;
+  const emit = (method, params) => {
+    const request = method === 'ui/initialize' || method === 'tools/call';
+    const message = {jsonrpc:'2.0', method, params};
+    if (request) message.id = ++sequence;
+    parent.postMessage(message, '*');
+    return request ? message.id : null;
+  };
+  const reportSize = () => {
+    if (initialized) emit('ui/notifications/size-changed', {
+      width: document.documentElement.scrollWidth,
+      height: document.documentElement.scrollHeight
+    });
+  };
+  new ResizeObserver(reportSize).observe(document.body);
   const text = (value) => document.createTextNode(value == null ? '' : String(value));
   const setTheme = (context) => { if (context && (context.theme === 'light' || context.theme === 'dark')) root.dataset.theme = context.theme; };
   const unwrap = (value) => { if (value && typeof value === 'object' && value.data) return unwrap(value.data); return value; };
   const records = (value) => { const data = unwrap(value); if (Array.isArray(data)) return data; return data && (data.content || data.items || data.budgets) || []; };
-  const number = (value, currency) => new Intl.NumberFormat(locale, currency ? {style:'currency', currency} : {maximumFractionDigits:2}).format(Number(value || 0));
+  const number = (value, currency) => value == null ? '—' : new Intl.NumberFormat(locale, currency ? {style:'currency', currency} : {maximumFractionDigits:2}).format(Number(value));
   const clear = () => content.replaceChildren();
   const retry = () => { emit('tools/call', {name:'listBudgets', arguments:{}}); };
   const renderError = (error) => { clear(); const message = document.createElement('p'); message.className = 'error'; message.append(text(error.message)); content.append(message); if (error.retryable) { const button = document.createElement('button'); button.type = 'button'; button.append(text(labels.retry)); button.addEventListener('click', retry); content.append(button); } main.setAttribute('aria-busy', 'false'); };
-  const render = (payload) => { labels = payload.labels || labels; locale = payload.locale || locale; document.documentElement.lang = locale; title.textContent = labels.title || ''; clear(); if (payload.status === 'LOADING') { const loading = document.createElement('p'); loading.append(text(labels.loading)); content.append(loading); return; } const list = records(payload.data); if (!list.length) { const empty = document.createElement('p'); empty.append(text(labels.empty)); content.append(empty); } list.forEach((budget) => { const currency = budget.currency; const card = document.createElement('article'); card.className = 'card'; const heading = document.createElement('strong'); heading.append(text(budget.name || budget.period || '')); card.append(heading); const progress = document.createElement('progress'); const percentage = Math.min(100, Math.max(0, Number(budget.percentage || 0))); progress.max = 100; progress.value = percentage; progress.setAttribute('aria-label', labels.progress || ''); card.append(progress); [['spent', budget.spent], ['remaining', budget.remaining], ['limit', budget.budgetLimit]].forEach(([key, value]) => { const row = document.createElement('div'); row.className = 'row'; const label = document.createElement('span'); label.className = 'muted'; label.append(text(labels[key])); const amount = document.createElement('span'); amount.append(text(number(value, currency))); row.append(label, amount); card.append(row); }); content.append(card); }); main.setAttribute('aria-busy', 'false'); };
-  window.addEventListener('message', ({data}) => { if (!data) return; if (data.method === 'ui/notifications/tool-result') { const result = data.params && (data.params.structuredContent || data.params.result || data.params); let payload = result; if (result && Array.isArray(result.content) && result.content[0] && result.content[0].text) { try { payload = JSON.parse(result.content[0].text); } catch (_) {} } if (payload && payload.code) renderError(payload); else render(payload || {}); } if (data.id && data.result && data.result.hostContext) { setTheme(data.result.hostContext); emit('ui/notifications/initialized', {}); } });
-  emit('ui/initialize', {capabilities:{}});
+  const render = (payload) => { labels = payload.labels || labels; locale = payload.locale || locale; document.documentElement.lang = locale; title.textContent = labels.title || ''; clear(); if (payload.status === 'LOADING') { const loading = document.createElement('p'); loading.append(text(labels.loading)); content.append(loading); return; } const list = records(payload.data); if (!list.length) { const empty = document.createElement('p'); empty.append(text(labels.empty)); content.append(empty); } list.forEach((budget) => { const currency = budget.currency; const card = document.createElement('article'); card.className = 'card'; const heading = document.createElement('strong'); heading.append(text(budget.name || budget.period || '')); card.append(heading); const hasProgress = budget.spent != null && budget.remaining != null && budget.percentage != null; if (hasProgress) { const progress = document.createElement('progress'); progress.max = 100; progress.value = Math.min(100, Math.max(0, Number(budget.percentage))); progress.setAttribute('aria-label', labels.progress || ''); card.append(progress); } else { const unavailable = document.createElement('p'); unavailable.className = 'muted'; unavailable.setAttribute('role', 'status'); unavailable.append(text(labels.progressUnavailable)); card.append(unavailable); } [['spent', budget.spent], ['remaining', budget.remaining], ['limit', budget.budgetLimit]].forEach(([key, value]) => { const row = document.createElement('div'); row.className = 'row'; const label = document.createElement('span'); label.className = 'muted'; label.append(text(labels[key])); const amount = document.createElement('span'); amount.append(text(number(value, currency))); row.append(label, amount); card.append(row); }); content.append(card); }); main.setAttribute('aria-busy', 'false'); };
+  window.addEventListener('message', ({data}) => {
+    if (!data) return;
+    if (data.id === initializeId && data.result) {
+      setTheme(data.result.hostContext);
+      initialized = true;
+      emit('ui/notifications/initialized', {});
+      reportSize();
+      return;
+    }
+    if (data.method === 'ui/notifications/host-context-changed') setTheme(data.params);
+    if (!initialized) return;
+    if (data.method === 'ui/notifications/tool-result') { const result = data.params && (data.params.structuredContent || data.params.result || data.params); let payload = result; if (result && Array.isArray(result.content) && result.content[0] && result.content[0].text) { try { payload = JSON.parse(result.content[0].text); } catch (_) {} } if (payload && payload.code) renderError(payload); else render(payload || {}); }
+  });
+  initializeId = emit('ui/initialize', {appInfo:{name:'BFlow budgets',version:'1.0.0'},protocolVersion:'2026-01-26',appCapabilities:{}});
 })();
 </script></body></html>

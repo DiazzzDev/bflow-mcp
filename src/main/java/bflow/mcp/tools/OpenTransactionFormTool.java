@@ -27,8 +27,12 @@ public class OpenTransactionFormTool {
      * for wallets, categories and the final write.
      * @return localized JSON fallback and MCP App payload.
      */
-    @McpTool(description = "Opens a transaction form with wallet and category "
-            + "selectors. Hosts without MCP Apps receive localized JSON.",
+    @McpTool(title = "Open transaction form",
+            description = "Open a form to enter an expense or income and "
+                    + "choose its wallet and category.",
+            annotations = @McpTool.McpAnnotations(title = "Open transaction form",
+                    readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
             metaProvider = TransactionFormUiMetaProvider.class)
     @RequiresScope("bflow-mcp/transactions.write")
     public String openTransactionForm() {

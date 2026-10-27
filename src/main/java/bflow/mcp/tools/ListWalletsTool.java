@@ -36,8 +36,12 @@ public class ListWalletsTool {
      * Lists the authenticated user's own wallets.
      * @return the raw JSON body returned by BFlow's API.
      */
-    @McpTool(description = "Lists the wallets the current user owns or "
-            + "belongs to.")
+    @McpTool(title = "List wallets",
+            description = "Find the user's wallets and their IDs when a "
+                    + "wallet is needed for a transaction or budget.",
+            annotations = @McpTool.McpAnnotations(title = "List wallets",
+                    readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false))
     @RequiresScope("bflow-mcp/wallets.read")
     public String listWallets() {
         return bflowApiClient.get("/api/v1/wallets", String.class);

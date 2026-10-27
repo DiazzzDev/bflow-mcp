@@ -68,14 +68,15 @@ public class UpdateTransactionTool {
      * @return the raw JSON body returned by BFlow's API, or a
      *      {@code CONFIRMATION_REQUIRED} preview if not yet confirmed.
      */
-    @McpTool(description = "Updates an existing expense or income entry. "
-            + "This replaces the whole entry, so pass every field, not "
-            + "just the one that changed — read the transaction first "
-            + "if unsure of its current values, especially 'recurring' "
-            + "(passing recurring=false on a recurring transaction turns "
-            + "recurrence off). Requires confirmed=true to actually "
-            + "execute — call once to get a preview, show it to the "
-            + "user, then call again with confirmed=true.",
+    @McpTool(title = "Update transaction",
+            description = "Replace all fields of an existing expense or "
+                    + "income. Read the current transaction first and pass "
+                    + "every field, including its recurring value. Show the "
+                    + "preview and execute only after user approval with "
+                    + "confirmed=true.",
+            annotations = @McpTool.McpAnnotations(title = "Update transaction",
+                    readOnlyHint = false, destructiveHint = true,
+                    idempotentHint = true, openWorldHint = false),
             metaProvider = ConfirmationUiMetaProvider.class)
     @RequiresScope("bflow-mcp/transactions.write")
     public String updateTransaction(

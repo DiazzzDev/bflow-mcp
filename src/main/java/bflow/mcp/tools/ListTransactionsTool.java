@@ -31,8 +31,12 @@ public class ListTransactionsTool {
      * they belong to, most recent first (API default sort/page size).
      * @return the raw JSON body returned by BFlow's API.
      */
-    @McpTool(description = "Lists the current user's transactions "
-            + "(expenses, incomes, transfers) across all their wallets.")
+    @McpTool(title = "List transactions",
+            description = "Show the user's expenses, income and transfers "
+                    + "across all wallets to answer questions about activity.",
+            annotations = @McpTool.McpAnnotations(title = "List transactions",
+                    readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false))
     @RequiresScope("bflow-mcp/transactions.read")
     public String listTransactions() {
         return bflowApiClient.get("/api/v1/transactions", String.class);
