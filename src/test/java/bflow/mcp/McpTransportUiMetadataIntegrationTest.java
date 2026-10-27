@@ -71,8 +71,9 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
                 .as("MCP initialize protocolVersion: %s", initialize)
                 .contains("2025-06-18");
         assertThat(initialize.path("result").path("instructions").asStringOpt())
-                .get().contains("BFlow is the user's personal finance app")
-                .contains("do not ask the host app for confirmation");
+                .hasValueSatisfying(instructions -> assertThat(instructions)
+                        .contains("BFlow is the user's personal finance app")
+                        .contains("do not ask the host app for confirmation"));
 
         post("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
         JsonNode toolsResponse = post("{\"jsonrpc\":\"2.0\",\"id\":2,"
