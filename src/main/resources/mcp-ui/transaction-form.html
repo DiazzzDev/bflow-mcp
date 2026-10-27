@@ -13,7 +13,11 @@
     input,select,textarea{font:inherit;padding:.5rem;border:1px solid var(--line);border-radius:.35rem;background:var(--bg);color:var(--fg)}
     button{padding:.55rem .75rem;border:1px solid var(--accent);border-radius:.35rem;background:var(--accent);color:Canvas;justify-self:start}
     button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-    .error{color:var(--danger)}
+    textarea{resize:none}.error{color:var(--danger)}.optional,.hint{color:var(--muted);font-size:.875rem}
+    .type-toggle,.date-presets{display:grid;gap:.5rem}.type-toggle{grid-template-columns:1fr 1fr}
+    .type-toggle button{width:100%;background:transparent;color:var(--fg)}
+    .type-toggle button[aria-pressed="true"]{background:var(--accent);color:Canvas}
+    .date-presets{grid-template-columns:repeat(2,max-content)}
   </style>
 </head>
 <body>
@@ -21,13 +25,18 @@
     <h1 id="title"></h1>
     <p id="status"></p>
     <form id="form">
-      <label id="type-label"><select id="type" required></select></label>
-      <label id="name-label"><input id="name" required maxlength="50"></label>
-      <label id="amount-label"><input id="amount" type="number" min="0.01" step="0.01" required></label>
-      <label id="date-label"><input id="date" type="date" required></label>
-      <label id="wallet-label"><select id="wallet" required></select><span id="wallet-error" class="error" role="status"></span></label>
-      <label id="category-label"><select id="category" required></select><span id="category-error" class="error" role="status"></span></label>
-      <label id="description-label"><textarea id="description" maxlength="100"></textarea></label>
+      <div id="type-toggle" class="type-toggle" role="group">
+        <button id="income" type="button" aria-pressed="false"></button>
+        <button id="expense" type="button" aria-pressed="true"></button>
+      </div>
+      <label><span id="name-label"></span><input id="name" required maxlength="50"></label>
+      <label><span id="amount-label"></span><input id="amount" type="number" min="0.01" step="0.01" required></label>
+      <label><span id="date-label"></span><input id="date" type="date" required><span id="date-hint" class="hint"></span>
+        <span class="date-presets"><button id="today" type="button"></button><button id="yesterday" type="button"></button></span>
+      </label>
+      <label><span id="wallet-label"></span><select id="wallet" required></select><span id="wallet-error" class="error" role="status"></span></label>
+      <label><span id="category-label"></span><select id="category" required></select><span id="category-error" class="error" role="status"></span></label>
+      <label><span><span id="description-label"></span> <span id="description-optional" class="optional"></span></span><textarea id="description" maxlength="100"></textarea></label>
       <button id="submit" type="submit" disabled></button>
     </form>
   </main>
@@ -42,10 +51,12 @@
       let locale = 'es';
       let walletsLoaded = false;
       let categoriesLoaded = false;
-      let pendingLookup = null;
+      let allCategories = [];
+      const pendingLookups = new Map();
       let sequence = 0;
       let initializeId = null;
       let initialized = false;
+      let type = 'EXPENSE';
 
       const emit = (method, params) => {
         const request = method === 'ui/initialize' || method === 'tools/call';
@@ -82,7 +93,10 @@
           node.append(option);
           return;
         }
-        items.forEach((item) => {
+        const ordered = id === 'wallet'
+          ? [...items].sort((left, right) => Number(Boolean(right.defaultWallet))
+            - Number(Boolean(left.defaultWallet))) : items;
+        ordered.forEach((item) => {
           const option = document.createElement('option');
           option.value = item.id || item.walletId || item.categoryId || '';
           option.textContent = item.name || item.title || option.value;
@@ -96,12 +110,18 @@
           && document.querySelector('#category').value);
       };
 
+      const renderCategoriesForType = () => {
+        const matching = allCategories.filter((item) => !item.type || item.type === type);
+        select('category', matching, labels.categoryEmpty || '');
+        updateSubmit();
+      };
+
       const callLookup = (kind) => {
-        pendingLookup = kind;
-        emit('tools/call', {
+        const requestId = emit('tools/call', {
           name: kind === 'wallets' ? 'listWallets' : 'listCategories',
           arguments: {}
         });
+        pendingLookups.set(requestId, kind);
       };
 
       const renderLookupError = (kind, error) => {
@@ -134,10 +154,21 @@
           select('wallet', data, labels.walletEmpty || '');
           walletsLoaded = true;
         } else {
-          select('category', data, labels.categoryEmpty || '');
+          allCategories = data;
           categoriesLoaded = true;
+          renderCategoriesForType();
         }
         updateSubmit();
+      };
+
+      const completeLookup = (kind, payload) => {
+        renderLookupResult(kind, payload);
+        if (kind === 'wallets') {
+          callLookup('categories');
+        } else {
+          status.textContent = '';
+          main.setAttribute('aria-busy', 'false');
+        }
       };
 
       const parseContent = (result) => {
@@ -152,33 +183,54 @@
         return result;
       };
 
+      const setType = (value) => {
+        type = value;
+        document.querySelector('#income').setAttribute('aria-pressed', String(value === 'INCOME'));
+        document.querySelector('#expense').setAttribute('aria-pressed', String(value === 'EXPENSE'));
+        if (categoriesLoaded) renderCategoriesForType();
+      };
+
+      const localDate = (offset) => {
+        const value = new Date();
+        value.setDate(value.getDate() + offset);
+        value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
+        return value.toISOString().slice(0, 10);
+      };
+
+      const unwrapCallResult = (result) => {
+        const payload = parseContent(result);
+        if (result && result.isError && !(payload && payload.code)) {
+          const message = result.content && result.content[0]
+            ? result.content[0].text : labels.optionLoadError;
+          return {code: 'TOOL_ERROR', message, retryable: true};
+        }
+        return payload;
+      };
+
       const render = (payload) => {
         labels = payload.labels || labels;
         locale = payload.locale || locale;
         root.lang = locale;
         document.querySelector('#title').textContent = labels.title || '';
-        [
-          ['type-label', 'type'], ['name-label', 'name'],
-          ['amount-label', 'amount'], ['date-label', 'date'],
-          ['wallet-label', 'wallet'], ['category-label', 'category']
-        ].forEach(([labelId, key]) => {
-          document.querySelector('#' + labelId).firstChild.before(
-            document.createTextNode(labels[key] || '')
-          );
+        document.querySelector('#type-toggle').setAttribute('aria-label', labels.typeAccessible || '');
+        ['name', 'amount', 'date', 'wallet', 'category', 'description'].forEach((key) => {
+          document.querySelector('#' + key + '-label').textContent = labels[key] || '';
         });
-        document.querySelector('#description-label').firstChild.before(
-          document.createTextNode(labels.description || '')
-        );
+        document.querySelector('#description-optional').textContent = labels.optional || '';
+        document.querySelector('#name').placeholder = labels.namePlaceholder || '';
+        document.querySelector('#amount').placeholder = labels.amountPlaceholder || '';
+        document.querySelector('#description').placeholder = labels.descriptionPlaceholder || '';
+        document.querySelector('#date-hint').textContent = labels.dateExample || '';
         submit.textContent = labels.submit || '';
         status.textContent = labels.loading || '';
-        document.querySelector('#type').replaceChildren(
-          ...[['EXPENSE', 'expense'], ['INCOME', 'income']].map(([value, key]) => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = labels[key] || '';
-            return option;
-          })
-        );
+        document.querySelector('#income').textContent = labels.income || '';
+        document.querySelector('#expense').textContent = labels.expense || '';
+        document.querySelector('#today').textContent = labels.today || '';
+        document.querySelector('#yesterday').textContent = labels.yesterday || '';
+        document.querySelector('#wallet').setAttribute('aria-label', labels.wallet || '');
+        document.querySelector('#category').setAttribute('aria-label', labels.category || '');
+        document.querySelector('#date').value = localDate(0);
+        setType('EXPENSE');
         main.setAttribute('aria-busy', 'true');
         callLookup('wallets');
       };
@@ -199,29 +251,38 @@
           root.dataset.theme = data.params.theme;
         }
         if (!initialized) return;
+        if (pendingLookups.has(data.id)) {
+          const kind = pendingLookups.get(data.id);
+          pendingLookups.delete(data.id);
+          const payload = data.error
+            ? {code: 'TOOL_ERROR', message: data.error.message || labels.optionLoadError,
+              retryable: true}
+            : unwrapCallResult(data.result);
+          completeLookup(kind, payload);
+          return;
+        }
         if (data.method === 'ui/notifications/tool-result') {
           const result = data.params && (data.params.structuredContent || data.params);
           const payload = parseContent(result);
           if (payload && payload.labels) {
             render(payload);
-          } else if (pendingLookup) {
-            const completedLookup = pendingLookup;
-            pendingLookup = null;
-            renderLookupResult(completedLookup, payload);
-            if (completedLookup === 'wallets') {
-              callLookup('categories');
-            } else {
-              status.textContent = '';
-              main.setAttribute('aria-busy', 'false');
-            }
           }
         }
+      });
+
+      document.querySelector('#income').addEventListener('click', () => setType('INCOME'));
+      document.querySelector('#expense').addEventListener('click', () => setType('EXPENSE'));
+      document.querySelector('#today').addEventListener('click', () => {
+        document.querySelector('#date').value = localDate(0);
+      });
+      document.querySelector('#yesterday').addEventListener('click', () => {
+        document.querySelector('#date').value = localDate(-1);
       });
 
       form.addEventListener('submit', (event) => {
         event.preventDefault();
         const args = {
-          type: document.querySelector('#type').value,
+          type,
           title: document.querySelector('#name').value,
           amount: Number(document.querySelector('#amount').value),
           date: document.querySelector('#date').value,

@@ -24,6 +24,11 @@ class McpUiPayloadFactoryTest {
         when(messages.get("ui.budgets.spent")).thenReturn("Gastado");
         when(messages.get("ui.budgets.remaining")).thenReturn("Restante");
         when(messages.get("ui.budgets.limit")).thenReturn("Límite");
+        when(messages.get("ui.budgets.period.daily")).thenReturn("Diario");
+        when(messages.get("ui.budgets.period.weekly")).thenReturn("Semanal");
+        when(messages.get("ui.budgets.period.monthly")).thenReturn("Mensual");
+        when(messages.get("ui.budgets.period.yearly")).thenReturn("Anual");
+        when(messages.get("ui.budgets.period.unknown")).thenReturn("Otro periodo");
         when(messages.get("ui.budgets.progressUnavailable"))
                 .thenReturn("Sin datos de progreso");
         when(messages.get("ui.budgets.progressUnavailable.detail"))
