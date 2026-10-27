@@ -44,10 +44,24 @@
       let categoriesLoaded = false;
       let pendingLookup = null;
       let sequence = 0;
+      let initializeId = null;
+      let initialized = false;
 
       const emit = (method, params) => {
-        parent.postMessage({jsonrpc: '2.0', id: ++sequence, method, params}, '*');
+        const request = method === 'ui/initialize' || method === 'tools/call';
+        const message = {jsonrpc: '2.0', method, params};
+        if (request) message.id = ++sequence;
+        parent.postMessage(message, '*');
+        return request ? message.id : null;
       };
+
+      const reportSize = () => {
+        if (initialized) emit('ui/notifications/size-changed', {
+          width: document.documentElement.scrollWidth,
+          height: document.documentElement.scrollHeight
+        });
+      };
+      new ResizeObserver(reportSize).observe(document.body);
 
       const unwrap = (value) => value && typeof value === 'object' && value.data
         ? unwrap(value.data) : value;
@@ -171,6 +185,20 @@
 
       window.addEventListener('message', ({data}) => {
         if (!data) return;
+        if (data.id === initializeId && data.result) {
+          if (['light', 'dark'].includes(data.result.hostContext?.theme)) {
+            root.dataset.theme = data.result.hostContext.theme;
+          }
+          initialized = true;
+          emit('ui/notifications/initialized', {});
+          reportSize();
+          return;
+        }
+        if (data.method === 'ui/notifications/host-context-changed'
+            && ['light', 'dark'].includes(data.params?.theme)) {
+          root.dataset.theme = data.params.theme;
+        }
+        if (!initialized) return;
         if (data.method === 'ui/notifications/tool-result') {
           const result = data.params && (data.params.structuredContent || data.params);
           const payload = parseContent(result);
@@ -187,12 +215,6 @@
               main.setAttribute('aria-busy', 'false');
             }
           }
-        }
-        if (data.id && data.result && data.result.hostContext) {
-          if (['light', 'dark'].includes(data.result.hostContext.theme)) {
-            root.dataset.theme = data.result.hostContext.theme;
-          }
-          emit('ui/notifications/initialized', {});
         }
       });
 
@@ -211,7 +233,11 @@
         emit('tools/call', {name: 'createTransaction', arguments: args});
       });
 
-      emit('ui/initialize', {capabilities: {}});
+      initializeId = emit('ui/initialize', {
+        appInfo: {name: 'BFlow transaction form', version: '1.0.0'},
+        protocolVersion: '2026-01-26',
+        appCapabilities: {}
+      });
     })();
   </script>
 </body>

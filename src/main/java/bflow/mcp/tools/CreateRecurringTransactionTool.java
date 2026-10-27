@@ -64,13 +64,14 @@ public class CreateRecurringTransactionTool {
      * @return the raw JSON body returned by BFlow's API, or a
      *      {@code CONFIRMATION_REQUIRED} preview if not yet confirmed.
      */
-    @McpTool(description = "Creates a new recurring expense or income "
-            + "schedule (e.g. a monthly subscription, a biweekly "
-            + "paycheck). BFlow generates the individual transactions "
-            + "from this automatically — use createTransaction instead "
-            + "for a one-off entry. Requires confirmed=true to actually "
-            + "execute — call once to get a preview, show it to the "
-            + "user, then call again with confirmed=true.",
+    @McpTool(title = "Create recurring transaction",
+            description = "Schedule a recurring expense or income. Get a "
+                    + "preview first, show it to the user and execute only "
+                    + "after approval with confirmed=true. Use createTransaction "
+                    + "for a one-time entry.",
+            annotations = @McpTool.McpAnnotations(title = "Create recurring transaction",
+                    readOnlyHint = false, destructiveHint = false,
+                    idempotentHint = false, openWorldHint = false),
             metaProvider = ConfirmationUiMetaProvider.class)
     @RequiresScope("bflow-mcp/recurring.write")
     public String createRecurringTransaction(

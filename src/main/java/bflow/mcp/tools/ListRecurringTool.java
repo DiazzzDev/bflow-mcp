@@ -28,8 +28,12 @@ public class ListRecurringTool {
      * Lists the authenticated user's recurring transactions.
      * @return the raw JSON body returned by BFlow's API.
      */
-    @McpTool(description = "Lists the current user's recurring "
-            + "transactions (scheduled expenses/incomes).")
+    @McpTool(title = "List recurring transactions",
+            description = "Show the user's scheduled recurring expenses and "
+                    + "income to answer questions about upcoming activity.",
+            annotations = @McpTool.McpAnnotations(title = "List recurring transactions",
+                    readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false))
     @RequiresScope("bflow-mcp/recurring.read")
     public String listRecurring() {
         return bflowApiClient.get("/api/v1/recurring", String.class);

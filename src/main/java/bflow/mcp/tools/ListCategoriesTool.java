@@ -38,11 +38,12 @@ public class ListCategoriesTool {
      * Lists all transaction categories.
      * @return the raw JSON body returned by BFlow's API.
      */
-    @McpTool(description = "Lists the transaction categories available in "
-            + "BFlow, including each category's id, name, type "
-            + "(INCOME, EXPENSE or TRANSFER), icon and color. Use this "
-            + "to look up the categoryId needed by tools that create "
-            + "transactions or budgets.")
+    @McpTool(title = "List categories",
+            description = "Find the user's transaction categories, types "
+                    + "and IDs. Use a category ID when creating a transaction.",
+            annotations = @McpTool.McpAnnotations(title = "List categories",
+                    readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false))
     @RequiresScope("bflow-mcp/categories.read")
     public String listCategories() {
         return bflowApiClient.get("/api/v1/categories", String.class);

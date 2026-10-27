@@ -91,14 +91,14 @@ public class CreateTransactionTool {
      * @return the raw JSON body returned by BFlow's API, or a
      *      {@code CONFIRMATION_REQUIRED} preview if not yet confirmed.
      */
-    @McpTool(description = "Creates a new expense or income entry for the "
-            + "current user (e.g. 'I bought a phone for $500' is an "
-            + "EXPENSE, 'I got paid my salary' is an INCOME). Does not "
-            + "handle recurring transactions. If retrying after an "
-            + "unclear result, pass the same idempotencyKey used before "
-            + "instead of calling again blind. Requires confirmed=true "
-            + "to actually execute — call once to get a preview, show it "
-            + "to the user, then call again with confirmed=true.",
+    @McpTool(title = "Create transaction",
+            description = "Record a one-time expense or income. Get a "
+                    + "preview first, show it to the user and execute only "
+                    + "after approval with confirmed=true. Reuse the same "
+                    + "idempotencyKey only when retrying an unclear result.",
+            annotations = @McpTool.McpAnnotations(title = "Create transaction",
+                    readOnlyHint = false, destructiveHint = false,
+                    idempotentHint = false, openWorldHint = false),
             metaProvider = ConfirmationUiMetaProvider.class)
     @RequiresScope("bflow-mcp/transactions.write")
     public String createTransaction(

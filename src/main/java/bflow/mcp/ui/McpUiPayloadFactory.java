@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import bflow.mcp.i18n.MessageService;
 
@@ -38,7 +39,7 @@ public class McpUiPayloadFactory {
      * @return a useful JSON fallback and MCP App payload.
      */
     public String budgets(final String rawBudgets) {
-        return serialize(rawBudgets, Map.of(
+        Map<String, String> labels = Map.of(
                 "title", messageService.get("ui.budgets.title"),
                 "empty", messageService.get("ui.budgets.empty"),
                 "loading", messageService.get("ui.budgets.loading"),
@@ -46,7 +47,12 @@ public class McpUiPayloadFactory {
                 "progress", messageService.get("ui.budgets.progress"),
                 "spent", messageService.get("ui.budgets.spent"),
                 "remaining", messageService.get("ui.budgets.remaining"),
-                "limit", messageService.get("ui.budgets.limit")));
+                "limit", messageService.get("ui.budgets.limit"),
+                "progressUnavailable", messageService.get(
+                        "ui.budgets.progressUnavailable"));
+        Object data = readBudgetData(rawBudgets, labels.get("progressUnavailable"));
+        return serialize(data, labels,
+                messageService.get("ui.budgets.progressUnavailable.detail"));
     }
 
     /**
@@ -76,10 +82,23 @@ public class McpUiPayloadFactory {
     }
 
     private String serialize(final String rawData, final Map<String, String> labels) {
+        return serialize(rawData, labels, null);
+    }
+
+    private String serialize(final String rawData, final Map<String, String> labels,
+            final String fallbackText) {
+        return serialize(readOrText(rawData), labels, fallbackText);
+    }
+
+    private String serialize(final Object data, final Map<String, String> labels,
+            final String fallbackText) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("locale", LocaleContextHolder.getLocale().toLanguageTag());
         response.put("labels", labels);
-        response.put("data", readOrText(rawData));
+        response.put("data", data);
+        if (fallbackText != null) {
+            response.put("fallbackText", fallbackText);
+        }
         try {
             return objectMapper.writeValueAsString(response);
         } catch (Exception exception) {
@@ -94,5 +113,37 @@ public class McpUiPayloadFactory {
         } catch (Exception ignored) {
             return rawData;
         }
+    }
+
+    private Object readBudgetData(final String rawData, final String unavailableLabel) {
+        Object data = readOrText(rawData);
+        if (!(data instanceof JsonNode root) || !root.isObject()) {
+            return data;
+        }
+        JsonNode budgets = root.path("data").path("content");
+        if (budgets.isArray()) {
+            budgets.forEach(item -> {
+                if (item instanceof ObjectNode budget
+                        && (isMissing(budget.get("spent"))
+                        || isMissing(budget.get("remaining"))
+                        || isMissing(budget.get("percentage")))) {
+                    ObjectNode display = objectMapper.createObjectNode();
+                    display.put("spent", displayValue(budget.get("spent")));
+                    display.put("remaining", displayValue(budget.get("remaining")));
+                    display.put("percentage", displayValue(budget.get("percentage")));
+                    display.put("status", unavailableLabel);
+                    budget.set("progressDisplay", display);
+                }
+            });
+        }
+        return root;
+    }
+
+    private boolean isMissing(final JsonNode value) {
+        return value == null || value.isNull();
+    }
+
+    private String displayValue(final JsonNode value) {
+        return isMissing(value) ? "—" : value.toString();
     }
 }

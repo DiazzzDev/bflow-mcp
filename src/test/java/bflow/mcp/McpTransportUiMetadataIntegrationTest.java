@@ -70,6 +70,9 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
         assertThat(initialize.path("result").path("protocolVersion").asStringOpt())
                 .as("MCP initialize protocolVersion: %s", initialize)
                 .contains("2025-06-18");
+        assertThat(initialize.path("result").path("instructions").asStringOpt())
+                .get().contains("BFlow is the user's personal finance app")
+                .contains("do not ask the host app for confirmation");
 
         post("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
         JsonNode toolsResponse = post("{\"jsonrpc\":\"2.0\",\"id\":2,"
@@ -79,6 +82,7 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
 
         Set<String> namesWithUi = new java.util.HashSet<>();
         Set<String> toolNames = new java.util.HashSet<>();
+        Set<String> annotatedTools = new java.util.HashSet<>();
         for (JsonNode tool : tools) {
             String toolName = tool.path("name").asStringOpt().orElse(null);
             assertThat(toolName)
@@ -86,6 +90,35 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
                     .isNotNull()
                     .isNotBlank();
             toolNames.add(toolName);
+            JsonNode annotations = tool.path("annotations");
+            assertThat(annotations.path("title").asStringOpt())
+                    .as("tool title annotation: %s", tool)
+                    .isPresent();
+            assertThat(annotations.path("readOnlyHint").isBoolean())
+                    .as("readOnlyHint annotation: %s", tool).isTrue();
+            assertThat(annotations.path("readOnlyHint").booleanValue())
+                    .as("readOnlyHint annotation: %s", tool)
+                    .isEqualTo(Set.of("listBudgets", "listWallets", "listCategories",
+                            "listTransactions", "listRecurring", "openTransactionForm")
+                            .contains(toolName));
+            assertThat(annotations.path("destructiveHint").isBoolean())
+                    .as("destructiveHint annotation: %s", tool).isTrue();
+            assertThat(annotations.path("destructiveHint").booleanValue())
+                    .as("destructiveHint annotation: %s", tool)
+                    .isEqualTo("updateTransaction".equals(toolName));
+            assertThat(annotations.path("idempotentHint").isBoolean())
+                    .as("idempotentHint annotation: %s", tool).isTrue();
+            assertThat(annotations.path("idempotentHint").booleanValue())
+                    .as("idempotentHint annotation: %s", tool)
+                    .isEqualTo("updateTransaction".equals(toolName)
+                            || Set.of("listBudgets", "listWallets", "listCategories",
+                                    "listTransactions", "listRecurring", "openTransactionForm")
+                                    .contains(toolName));
+            assertThat(annotations.path("openWorldHint").isBoolean())
+                    .as("openWorldHint annotation: %s", tool).isTrue();
+            assertThat(annotations.path("openWorldHint").booleanValue())
+                    .as("openWorldHint annotation: %s", tool).isFalse();
+            annotatedTools.add(toolName);
             JsonNode uiMeta = tool.path("_meta").path("ui");
             if (!uiMeta.isMissingNode() && !uiMeta.isNull()) {
                 String resourceUri = uiMeta.path("resourceUri").asStringOpt().orElse(null);
@@ -124,6 +157,7 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
                 .as("Tool names in MCP tools/list JSON: %s", toolsResponse)
                 .containsAll(UI_TOOL_NAMES)
                 .containsAll(TEXT_ONLY_TOOL_NAMES);
+        assertThat(annotatedTools).hasSize(10);
         for (JsonNode tool : tools) {
             String toolName = tool.path("name").asStringOpt().orElse(null);
             if (toolName != null && !UI_TOOL_NAMES.contains(toolName)) {

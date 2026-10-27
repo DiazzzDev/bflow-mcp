@@ -70,12 +70,14 @@ public class CreateBudgetTool {
      * @return the raw JSON body returned by BFlow's API, or a
      *      {@code CONFIRMATION_REQUIRED} preview if not yet confirmed.
      */
-    @McpTool(description = "Creates a new budget covering all spending in "
-            + "one wallet (e.g. 'set a $200 monthly budget for my "
-            + "personal wallet'). Does not support per-category budgets "
-            + "yet. Requires confirmed=true to actually execute — call "
-            + "once to get a preview, show it to the user, then call "
-            + "again with confirmed=true.",
+    @McpTool(title = "Create budget",
+            description = "Create a wallet-wide budget for the requested "
+                    + "amount, currency, period and start date. Call first "
+                    + "without confirmed to show a preview; execute only "
+                    + "after the user approves it, then call with confirmed=true.",
+            annotations = @McpTool.McpAnnotations(title = "Create budget",
+                    readOnlyHint = false, destructiveHint = false,
+                    idempotentHint = false, openWorldHint = false),
             metaProvider = ConfirmationUiMetaProvider.class)
     @RequiresScope("bflow-mcp/budgets.write")
     public String createBudget(

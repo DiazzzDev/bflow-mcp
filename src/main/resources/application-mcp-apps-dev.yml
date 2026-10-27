@@ -1,0 +1,9 @@
+server:
+  address: 127.0.0.1
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://127.0.0.1/mcp-apps-dev-only
