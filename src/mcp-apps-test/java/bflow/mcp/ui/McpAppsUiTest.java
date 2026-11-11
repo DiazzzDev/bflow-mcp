@@ -82,7 +82,9 @@ class McpAppsUiTest {
                     + "\"currency\":\"USD\",\"spent\":null,"
                     + "\"remaining\":null,\"budgetLimit\":100,"
                     + "\"percentage\":null}]}}");
-            app.getByText("Sin datos de progreso").waitFor();
+            app.locator("p.unavailable").waitFor();
+            assertThat(app.locator("p.unavailable").innerText())
+                    .isEqualTo("Sin datos de progreso");
             assertThat(app.locator("body").innerText()).contains("Sin datos de progreso")
                     .contains("—").contains("Mensual").doesNotContain("MONTHLY");
             assertThat(app.locator("progress").count()).isZero();
@@ -352,7 +354,7 @@ class McpAppsUiTest {
     private static String harness(final String resource, final String theme) {
         return "<iframe src='" + baseUrl + "/" + resource + "'></iframe>"
                 + "<script>window.calls=[];window.toolRequests=[];window.protocolErrors=[];window.initialized=false;"
-                + "window.reply=(name,result)=>{const request=window.toolRequests.find(item=>item.params.name===name&&!item.replied);if(!request)throw Error('No pending '+name+' request');request.replied=true;document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:request.id,result:{content:[{type:'text',text:JSON.stringify(result)}]}},'*')};"
+                + "window.reply=(name,result)=>{const request=window.toolRequests.find(item=>item.params.name===name&&!item.replied);if(!request)throw Error('No pending '+name+' request');request.replied=true;const payload=result&&result.isError?result:{content:[{type:'text',text:JSON.stringify(result)}]};document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:request.id,result:payload},'*')};"
                 + "window.sizeChanged=0;window.addEventListener('message',e=>{const d=e.data||{};"
                 + "if(d.method==='ui/initialize'){if(!d.params?.appInfo)window.protocolErrors.push('missing appInfo');"
                 + "if(!d.params?.protocolVersion)window.protocolErrors.push('missing protocolVersion');"
