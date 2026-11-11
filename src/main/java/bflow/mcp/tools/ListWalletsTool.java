@@ -38,7 +38,8 @@ public class ListWalletsTool {
      */
     @McpTool(title = "List wallets",
             description = "Find the user's wallets and their IDs when a "
-                    + "wallet is needed for a transaction or budget.",
+                    + "wallet is needed for a transaction or budget. Treat IDs as "
+                    + "internal references; never include them in a user-facing reply.",
             annotations = @McpTool.McpAnnotations(title = "List wallets",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false))

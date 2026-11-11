@@ -5,6 +5,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -29,22 +31,35 @@ class McpUiPayloadFactoryTest {
         when(messages.get("ui.budgets.period.monthly")).thenReturn("Mensual");
         when(messages.get("ui.budgets.period.yearly")).thenReturn("Anual");
         when(messages.get("ui.budgets.period.unknown")).thenReturn("Otro periodo");
+        for (String key : new String[] {"ui.budgets.title", "ui.budgets.empty",
+                "ui.budgets.loading", "ui.budgets.retry", "ui.budgets.refresh", "ui.budgets.progress",
+                "ui.budgets.spent", "ui.budgets.remaining", "ui.budgets.limit",
+                "ui.budgets.progressUnavailable", "ui.budgets.search", "ui.budgets.all",
+                "ui.budgets.monthly", "ui.budgets.weekly", "ui.budgets.yearly",
+                "ui.budgets.daily", "ui.budgets.wallet", "ui.budgets.category",
+                "ui.budgets.healthy", "ui.budgets.warning", "ui.budgets.critical",
+                "ui.budgets.statusUnavailable", "ui.budgets.daysLeft",
+                "ui.budgets.percentUsed"}) {
+            when(messages.get(key)).thenReturn(key);
+        }
         when(messages.get("ui.budgets.progressUnavailable"))
-                .thenReturn("Sin datos de progreso");
-        when(messages.get("ui.budgets.progressUnavailable.detail"))
-                .thenReturn("Muestra spent, remaining y percentage como —.");
+                .thenReturn("El progreso no está disponible todavía.");
+        when(messages.get("ui.budgets.summary.one")).thenReturn("Tienes 1 presupuesto:");
+        when(messages.get("ui.budgets.nameFallback")).thenReturn("Presupuesto general");
         McpUiPayloadFactory factory = new McpUiPayloadFactory(
                 new ObjectMapper(), messages);
 
-        String result = factory.budgets("{\"data\":{\"content\":[{"
+        CallToolResult result = factory.budgets("{\"data\":{\"content\":[{"
+                + "\"id\":\"private-id\",\"walletName\":\"Personal\","
+                + "\"period\":\"YEARLY\",\"budgetLimit\":10,"
                 + "\"spent\":null,\"remaining\":null,\"percentage\":null}]}}");
 
-        assertThat(result).contains("\"progressDisplay\"")
-                .contains("\"spent\":\"—\"")
-                .contains("\"remaining\":\"—\"")
-                .contains("\"percentage\":\"—\"")
-                .contains("Sin datos de progreso")
-                .contains("\"spent\":null")
-                .doesNotContain("\"spent\":0");
+        String modelText = ((TextContent) result.content().getFirst()).text();
+        assertThat(modelText).contains("Personal")
+                .contains("El progreso no está disponible todavía.")
+                .doesNotContain("private-id", "spent", "percentage", "null", "API");
+        assertThat(result.meta()).containsKey("io.bflow/budgets");
+        assertThat(result.meta().toString()).contains("progressAvailable")
+                .doesNotContain("private-id", "\"spent\":null");
     }
 }

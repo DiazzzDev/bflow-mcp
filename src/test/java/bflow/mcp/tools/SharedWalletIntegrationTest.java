@@ -34,6 +34,9 @@ import bflow.mcp.support.AbstractToolIntegrationTest;
  */
 class SharedWalletIntegrationTest extends AbstractToolIntegrationTest {
 
+    private static final String SHARED_WALLET_ID = "00000000-0000-4000-8000-000000000001";
+    private static final String CATEGORY_ID = "00000000-0000-4000-8000-000000000002";
+
     @Autowired
     private CreateTransactionTool createTransactionTool;
 
@@ -48,7 +51,7 @@ class SharedWalletIntegrationTest extends AbstractToolIntegrationTest {
         authenticateAs("member-user", "bflow-mcp/transactions.write");
 
         String expenseJson = "{\"data\":{\"id\":\"e-1\",\"walletId\":"
-                + "\"shared-wallet-1\"},\"success\":true}";
+                + "\"" + SHARED_WALLET_ID + "\"},\"success\":true}";
 
         mockBflowApi.expect(requestTo("http://bflow-api-under-test/api/v1/expenses"))
                 .andExpect(method(HttpMethod.POST))
@@ -56,7 +59,7 @@ class SharedWalletIntegrationTest extends AbstractToolIntegrationTest {
 
         String result = createTransactionTool.createTransaction(
                 "EXPENSE", "Groceries", 45.0, "2026-09-14",
-                "shared-wallet-1", "category-1", null, null, true);
+                SHARED_WALLET_ID, CATEGORY_ID, null, null, true);
 
         assertThat(result).isEqualTo(expenseJson);
         mockBflowApi.verify();
@@ -74,11 +77,10 @@ class SharedWalletIntegrationTest extends AbstractToolIntegrationTest {
 
         String result = createTransactionTool.createTransaction(
                 "EXPENSE", "Groceries", 45.0, "2026-09-14",
-                "shared-wallet-1", "category-1", null, null, true);
+                SHARED_WALLET_ID, CATEGORY_ID, null, null, true);
 
-        assertThat(result)
-                .contains("\"code\":\"RESOURCE_ACCESS_DENIED\"")
-                .contains("\"retryable\":false");
+        assertThat(result).contains("do not have access")
+                .doesNotContain("RESOURCE_ACCESS_DENIED", "User does not have access");
         mockBflowApi.verify();
     }
 }

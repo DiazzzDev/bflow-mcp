@@ -56,9 +56,8 @@ class ListCategoriesToolIntegrationTest extends AbstractToolIntegrationTest {
         // verify() below with "no further requests expected".
         String result = listCategoriesTool.listCategories();
 
-        assertThat(result)
-                .contains("\"code\":\"SCOPE_DENIED\"")
-                .contains("\"retryable\":false");
+        assertThat(result).contains("does not have access")
+                .doesNotContain("SCOPE_DENIED", "retryable", "{\"");
         mockBflowApi.verify();
     }
 
@@ -73,7 +72,8 @@ class ListCategoriesToolIntegrationTest extends AbstractToolIntegrationTest {
 
         String result = listCategoriesTool.listCategories();
 
-        assertThat(result).contains("\"code\":\"RESOURCE_ACCESS_DENIED\"");
+        assertThat(result).contains("do not have access")
+                .doesNotContain("RESOURCE_ACCESS_DENIED", "Not allowed");
         mockBflowApi.verify();
     }
 }

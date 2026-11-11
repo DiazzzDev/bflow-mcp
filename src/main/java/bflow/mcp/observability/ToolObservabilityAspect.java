@@ -6,6 +6,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 import org.springframework.ai.mcp.annotation.McpTool;
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Configuration;
@@ -75,7 +76,7 @@ public class ToolObservabilityAspect {
 
             try {
                 Object result = invocation.proceed();
-                logOutcome(toolName, userId, startedAt, outcomeOf(result));
+                logOutcome(toolName, userId, startedAt, outcomeOf(toolName, result));
                 return result;
             } catch (Exception ex) {
                 // ToolErrorHandlingAspect runs INSIDE this advice (order
@@ -94,7 +95,10 @@ public class ToolObservabilityAspect {
         };
     }
 
-    private String outcomeOf(final Object result) {
+    private String outcomeOf(final String toolName, final Object result) {
+        if (result instanceof CallToolResult toolResult) {
+            return toolResult.isError() ? "ERROR" : "SUCCESS";
+        }
         if (!(result instanceof String text)) {
             return "SUCCESS";
         }
@@ -109,6 +113,10 @@ public class ToolObservabilityAspect {
             int codeEnd = text.indexOf('"', codeStart);
             return "ERROR:" + (codeEnd > codeStart
                     ? text.substring(codeStart, codeEnd) : "UNKNOWN");
+        }
+        if (!"getCurrentAccount".equals(toolName)
+                && !text.startsWith("{") && !text.startsWith("[")) {
+            return "ERROR";
         }
         return "SUCCESS";
     }

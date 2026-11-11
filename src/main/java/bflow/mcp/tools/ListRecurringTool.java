@@ -30,7 +30,8 @@ public class ListRecurringTool {
      */
     @McpTool(title = "List recurring transactions",
             description = "Show the user's scheduled recurring expenses and "
-                    + "income to answer questions about upcoming activity.",
+                    + "income to answer questions about upcoming activity. Keep IDs and "
+                    + "raw field names internal; explain schedules in everyday language.",
             annotations = @McpTool.McpAnnotations(title = "List recurring transactions",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false))

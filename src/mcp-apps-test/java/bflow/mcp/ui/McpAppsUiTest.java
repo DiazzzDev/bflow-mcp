@@ -157,7 +157,7 @@ class McpAppsUiTest {
             assertThat(app.locator("#status").innerText()).isEmpty();
             assertThat(app.locator("main").getAttribute("aria-busy")).isEqualTo("false");
             assertThat(app.locator("#wallet").inputValue()).isEqualTo("w-default");
-            assertThat(app.locator("#category").inputValue()).isEqualTo("c1");
+            assertThat(app.locator("#category").inputValue()).isEmpty();
             assertThat(app.locator("#expense").getAttribute("aria-pressed"))
                     .isEqualTo("true");
             assertThat(app.locator("#type-label").count()).isZero();
@@ -181,7 +181,8 @@ class McpAppsUiTest {
             app.locator("#income").click();
             assertThat(app.locator("#income").getAttribute("aria-pressed"))
                     .isEqualTo("true");
-            assertThat(app.locator("#category").inputValue()).isEqualTo("c2");
+            assertThat(app.locator("#category").inputValue()).isEmpty();
+            app.locator("#category").selectOption("c2");
             app.locator("#name").fill("Lunch");
             app.locator("#amount").fill("12.50");
             app.locator("#date").fill("2026-10-25");
@@ -207,15 +208,16 @@ class McpAppsUiTest {
             page.setContent(harness("transaction-form.html", "light"));
             Frame app = awaitApp(page, "transaction-form.html");
             sendResult(page, transactionLabels());
-            sendToolResponse(page, "listWallets", Map.of("code", "SCOPE_DENIED",
-                    "message", "Missing bflow-mcp/wallets.read", "retryable", false));
+            sendToolResponse(page, "listWallets", Map.of("isError", true,
+                    "content", List.of(Map.of("type", "text",
+                            "text", "This connection does not have access to this option."))));
             sendToolResponse(page, "listCategories", Map.of("data", Map.of("content",
                     List.of(Map.of("id", "c1", "name", "Food")))));
 
             assertThat(app.locator("#wallet-error").innerText())
-                    .contains("bflow-mcp/wallets.read");
+                    .contains("does not have access");
             assertThat(app.locator("#wallet").inputValue()).isEmpty();
-            assertThat(app.locator("#category").inputValue()).isEqualTo("c1");
+            assertThat(app.locator("#category").inputValue()).isEmpty();
             assertThat(app.locator("#submit").isDisabled()).isTrue();
         }
     }
@@ -230,14 +232,15 @@ class McpAppsUiTest {
             sendResult(page, transactionLabels());
             sendToolResponse(page, "listWallets", Map.of("data", Map.of("content",
                     List.of(Map.of("id", "w1", "name", "Wallet")))));
-            sendToolResponse(page, "listCategories", Map.of("code", "SCOPE_DENIED",
-                    "message", "Missing bflow-mcp/categories.read", "retryable", false));
+            sendToolResponse(page, "listCategories", Map.of("isError", true,
+                    "content", List.of(Map.of("type", "text",
+                            "text", "This connection does not have access to this option."))));
 
             assertThat(app.locator("#wallet").inputValue()).isEqualTo("w1");
             assertThat(app.locator("#category-error").innerText())
-                    .contains("bflow-mcp/categories.read");
+                    .contains("does not have access");
             assertThat(app.locator("#category").inputValue()).isEmpty();
-            assertThat(app.locator("#submit").isDisabled()).isTrue();
+            assertThat(app.locator("#submit").isDisabled()).isFalse();
         }
     }
 

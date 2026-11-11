@@ -1,6 +1,5 @@
 package bflow.mcp.tools;
 
-import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -19,7 +18,7 @@ import bflow.mcp.ui.ConfirmationUiMetaProvider;
  * <p>BFlow's {@code PUT /{id}} endpoints are full replaces, not partial
  * patches: every field in {@code ExpenseRequest}/{@code IncomeRequest}
  * must be sent, not just the ones that changed. This tool mirrors that —
- * every parameter here is required, matching {@link CreateTransactionTool}'s
+ * every parameter here is supplied, matching {@link CreateTransactionTool}'s
  * shape exactly (same post-refactor DTO, per main@45be5c2).</p>
  *
  * <p>An AI agent calling this should have first read the existing
@@ -55,9 +54,9 @@ public class UpdateTransactionTool {
      * @param transactionId the id of the transaction to update.
      * @param title short title, 1-50 characters.
      * @param amount the transaction amount, must be positive.
-     * @param date the transaction date, must not be in the future.
+     * @param date optional transaction date; defaults to today.
      * @param walletId the id of the wallet this belongs to.
-     * @param categoryId the id of the category this belongs to.
+     * @param categoryId optional category id; may be left unassigned.
      * @param description optional longer description, up to 100 characters.
      * @param recurring whether this transaction is recurring — pass the
      *      transaction's current value (read it first) to avoid
@@ -73,7 +72,8 @@ public class UpdateTransactionTool {
                     + "income. Read the current transaction first and pass "
                     + "every field, including its recurring value. Show the "
                     + "preview and execute only after user approval with "
-                    + "confirmed=true.",
+                    + "confirmed=true. Keep internal IDs and API field names out "
+                    + "of the final reply.",
             annotations = @McpTool.McpAnnotations(title = "Update transaction",
                     readOnlyHint = false, destructiveHint = true,
                     idempotentHint = true, openWorldHint = false),
@@ -86,11 +86,11 @@ public class UpdateTransactionTool {
                 final String transactionId,
             @McpToolParam(description = "Short title, 1-50 characters") final String title,
             @McpToolParam(description = "Amount, must be positive") final double amount,
-            @McpToolParam(description = "Date in YYYY-MM-DD format, not in the future")
+            @McpToolParam(description = "Optional date in YYYY-MM-DD format; defaults to today", required = false)
                 final String date,
             @McpToolParam(description = "Wallet id this transaction belongs to")
                 final String walletId,
-            @McpToolParam(description = "Category id this transaction belongs to")
+            @McpToolParam(description = "Optional category id", required = false)
                 final String categoryId,
             @McpToolParam(description = "Optional longer description, up to "
                     + "100 characters", required = false)
@@ -105,12 +105,14 @@ public class UpdateTransactionTool {
                 final Boolean confirmed) {
 
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("title", title);
-        body.put("description", description);
+        ToolInputValidator.uuid(transactionId, "transactionId");
+        body.put("title", ToolInputValidator.requiredText(title, "title", 50));
+        body.put("description", ToolInputValidator.optionalText(description, "description", 100));
+        ToolInputValidator.positiveAmount(amount);
         body.put("amount", amount);
-        body.put("date", LocalDate.parse(date).toString());
-        body.put("walletId", walletId);
-        body.put("categoryId", categoryId);
+        body.put("date", ToolInputValidator.transactionDate(date, "date").toString());
+        body.put("walletId", ToolInputValidator.uuid(walletId, "walletId"));
+        body.put("categoryId", ToolInputValidator.optionalUuid(categoryId, "categoryId"));
         body.put("recurring", recurring);
 
         String path;

@@ -49,10 +49,10 @@ public class CreateRecurringTransactionTool {
      * @param type either {@code EXPENSE} or {@code INCOME}.
      * @param title short title.
      * @param amount the amount per occurrence, must be positive.
-     * @param frequency {@code DAILY}, {@code WEEKLY}, or {@code MONTHLY}.
-     * @param startDate the date the recurrence starts, YYYY-MM-DD.
-     * @param walletId the id of the wallet this belongs to.
-     * @param categoryId the id of the category this belongs to.
+     * @param frequency {@code DAILY}, {@code WEEKLY}, {@code MONTHLY}, or {@code YEARLY}.
+     * @param startDate optional start date; defaults to today.
+     * @param walletId optional wallet; BFlow chooses the default wallet when omitted.
+     * @param categoryId optional category.
      * @param description optional longer description.
      * @param endDate optional date the recurrence stops, YYYY-MM-DD. If
      *      omitted, it recurs indefinitely.
@@ -65,9 +65,11 @@ public class CreateRecurringTransactionTool {
      *      {@code CONFIRMATION_REQUIRED} preview if not yet confirmed.
      */
     @McpTool(title = "Create recurring transaction",
-            description = "Schedule a recurring expense or income. Get a "
+            description = "Schedule a recurring expense or income. Start date defaults to today; "
+                    + "wallet and category can be omitted, and end date is optional. Get a "
                     + "preview first, show it to the user and execute only "
-                    + "after approval with confirmed=true. Use createTransaction "
+                    + "after approval with confirmed=true. Keep IDs and field names "
+                    + "internal. Use createTransaction "
                     + "for a one-time entry.",
             annotations = @McpTool.McpAnnotations(title = "Create recurring transaction",
                     readOnlyHint = false, destructiveHint = false,
@@ -79,12 +81,12 @@ public class CreateRecurringTransactionTool {
             @McpToolParam(description = "Short title") final String title,
             @McpToolParam(description = "Amount per occurrence, must be positive")
                 final double amount,
-            @McpToolParam(description = "DAILY, WEEKLY, or MONTHLY") final String frequency,
-            @McpToolParam(description = "Start date in YYYY-MM-DD format")
+            @McpToolParam(description = "DAILY, WEEKLY, MONTHLY, or YEARLY") final String frequency,
+            @McpToolParam(description = "Optional start date in YYYY-MM-DD format; defaults to today", required = false)
                 final String startDate,
-            @McpToolParam(description = "Wallet id this belongs to")
+            @McpToolParam(description = "Optional wallet id; defaults to your primary wallet", required = false)
                 final String walletId,
-            @McpToolParam(description = "Category id this belongs to")
+            @McpToolParam(description = "Optional category id", required = false)
                 final String categoryId,
             @McpToolParam(description = "Optional longer description", required = false)
                 final String description,
@@ -102,18 +104,27 @@ public class CreateRecurringTransactionTool {
                 final Boolean confirmed) {
 
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("title", title);
-        body.put("description", description);
+        body.put("title", ToolInputValidator.requiredText(title, "title", 50));
+        body.put("description", ToolInputValidator.optionalText(description, "description", 100));
+        ToolInputValidator.positiveAmount(amount);
         body.put("amount", amount);
-        body.put("type", type.toUpperCase());
-        body.put("frequency", frequency.toUpperCase());
-        body.put("startDate", LocalDate.parse(startDate).toString());
-        body.put("walletId", walletId);
-        body.put("categoryId", categoryId);
-        if (endDate != null) {
-            body.put("endDate", LocalDate.parse(endDate).toString());
+        body.put("type", ToolInputValidator.enumValue(type, "type", "EXPENSE", "INCOME"));
+        body.put("frequency", ToolInputValidator.enumValue(frequency, "frequency", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"));
+        body.put("startDate", ToolInputValidator.dateOrToday(startDate, "startDate").toString());
+        body.put("walletId", ToolInputValidator.optionalUuid(walletId, "walletId"));
+        body.put("categoryId", ToolInputValidator.optionalUuid(categoryId, "categoryId"));
+        if (endDate != null && !endDate.isBlank()) {
+            LocalDate parsedEndDate = ToolInputValidator.dateOrToday(endDate, "endDate");
+            LocalDate parsedStartDate = LocalDate.parse((String) body.get("startDate"));
+            if (parsedEndDate.isBefore(parsedStartDate)) {
+                throw new IllegalArgumentException("endDate must be on or after startDate");
+            }
+            body.put("endDate", parsedEndDate.toString());
         }
         if (intervalValue != null) {
+            if (intervalValue < 1 || intervalValue > 365) {
+                throw new IllegalArgumentException("intervalValue must be between 1 and 365");
+            }
             body.put("intervalValue", intervalValue);
         }
 

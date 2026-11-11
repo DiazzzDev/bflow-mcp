@@ -93,7 +93,7 @@ class DcrShimIntegrationTest extends AbstractToolIntegrationTest {
         String location = redirect.getUrl();
         assertThat(location).startsWith("https://example.auth.us-east-1.amazoncognito.com/oauth2/authorize");
         assertThat(location).contains("client_id=test-real-cognito-app-client-id");
-        assertThat(location).contains("redirect_uri=http://localhost:8081/oauth/callback");
+        assertThat(location).contains("redirect_uri=http%3A%2F%2Flocalhost%3A8081%2Foauth%2Fcallback");
         assertThat(location).contains("code_challenge=abc123");
         assertThat(location).contains("code_challenge_method=S256");
         assertThat(location).doesNotContain("resource=");

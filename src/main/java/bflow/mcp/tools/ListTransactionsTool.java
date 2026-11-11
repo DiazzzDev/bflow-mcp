@@ -33,7 +33,8 @@ public class ListTransactionsTool {
      */
     @McpTool(title = "List transactions",
             description = "Show the user's expenses, income and transfers "
-                    + "across all wallets to answer questions about activity.",
+                    + "across all wallets to answer questions about activity. "
+                    + "Summarize naturally; never show IDs, API wrappers, or raw field names.",
             annotations = @McpTool.McpAnnotations(title = "List transactions",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false))
