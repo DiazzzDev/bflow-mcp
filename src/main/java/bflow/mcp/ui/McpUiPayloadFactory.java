@@ -69,7 +69,11 @@ public class McpUiPayloadFactory {
                 Map.entry("statusUnavailable", messageService.get("ui.budgets.statusUnavailable")),
                 Map.entry("warning", messageService.get("ui.budgets.warning")),
                 Map.entry("critical", messageService.get("ui.budgets.critical")),
-                Map.entry("daysLeft", messageService.get("ui.budgets.daysLeft")));
+                Map.entry("daysLeft", messageService.get("ui.budgets.daysLeft")),
+                Map.entry("budgetCountOne", messageService.get(
+                        "ui.budgets.count.one")),
+                Map.entry("budgetCountMany", messageService.get(
+                        "ui.budgets.count.many")));
         Object data = readBudgetData(rawBudgets, labels.get("progressUnavailable"));
         Map<String, Object> appPayload = new LinkedHashMap<>();
         appPayload.put("locale", LocaleContextHolder.getLocale().toLanguageTag());
@@ -93,6 +97,7 @@ public class McpUiPayloadFactory {
     public String transactionForm() {
         return serialize("{}", Map.ofEntries(
                 Map.entry("title", messageService.get("ui.transaction.title")),
+                Map.entry("subtitle", messageService.get("ui.transaction.subtitle")),
                 Map.entry("loading", messageService.get("ui.transaction.loading")),
                 Map.entry("type", messageService.get("ui.transaction.type")),
                 Map.entry("typeAccessible", messageService.get(
@@ -123,6 +128,10 @@ public class McpUiPayloadFactory {
                 Map.entry("optionLoadError", messageService.get(
                         "ui.transaction.options.error")),
                 Map.entry("submit", messageService.get("ui.transaction.submit")),
+                Map.entry("saveExpense", messageService.get(
+                        "ui.transaction.submit.expense")),
+                Map.entry("saveIncome", messageService.get(
+                        "ui.transaction.submit.income")),
                 Map.entry("empty", messageService.get("ui.transaction.empty")),
                 Map.entry("retry", messageService.get("ui.transaction.retry")),
                 Map.entry("walletEmpty", messageService.get(

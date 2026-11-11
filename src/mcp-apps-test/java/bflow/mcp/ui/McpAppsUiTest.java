@@ -93,12 +93,17 @@ class McpAppsUiTest {
                     "Presupuestos", "Cargando presupuestos…",
                     "No hay presupuestos para mostrar.", "Reintentar"),
                     "data", Map.of("content", List.of(Map.of("period", "MONTHLY",
+                            "name", "Monthly household budget with a very long title",
                             "currency", "USD", "spent", 25.5, "remaining", 74.5,
-                            "budgetLimit", 100, "percentage", 25.5,
+                            "budgetLimit", 2999.00, "percentage", 25.5,
                             "progressAvailable", true)))));
             assertThat(app.locator("body").innerText()).contains("Presupuestos")
-                    .contains("25,50");
+                    .contains("25,50")
+                    .contains("1 presupuesto")
+                    .contains("Monthly household budget with a very long title");
             assertThat(app.locator("[role=progressbar]").count()).isEqualTo(1);
+            assertThat(app.locator(".metric strong").first()
+                    .evaluate("e => getComputedStyle(e).whiteSpace")).isEqualTo("nowrap");
             assertThat(app.locator("html").getAttribute("data-theme")).isEqualTo("dark");
             assertThat(externalRequests).isEmpty();
         }
@@ -169,7 +174,9 @@ class McpAppsUiTest {
             assertThat(app.locator("#description-optional").innerText())
                     .isEqualTo("(optional)");
             assertThat(app.locator("#description").evaluate("e => getComputedStyle(e).resize"))
-                    .isEqualTo("none");
+                    .isEqualTo("vertical");
+            assertThat(app.locator("#description").isVisible()).isFalse();
+            assertThat(app.locator("#submit").innerText()).isEqualTo("Save expense");
             String expectedToday = (String) app.evaluate("() => {const d=new Date();"
                     + "d.setMinutes(d.getMinutes()-d.getTimezoneOffset());"
                     + "return d.toISOString().slice(0,10)}");
@@ -184,6 +191,7 @@ class McpAppsUiTest {
             app.locator("#income").click();
             assertThat(app.locator("#income").getAttribute("aria-pressed"))
                     .isEqualTo("true");
+            assertThat(app.locator("#submit").innerText()).isEqualTo("Save income");
             assertThat(app.locator("#category").inputValue()).isEmpty();
             app.locator("#category").selectOption("c2");
             app.locator("#name").fill("Lunch");
@@ -322,6 +330,8 @@ class McpAppsUiTest {
                 Map.entry("empty", empty), Map.entry("retry", retry),
                 Map.entry("progress", "Progress"),
                 Map.entry("progressUnavailable", "Sin datos de progreso"),
+                Map.entry("budgetCountOne", spanish ? "presupuesto" : "budget"),
+                Map.entry("budgetCountMany", spanish ? "presupuestos" : "budgets"),
                 Map.entry("spent", "Spent"), Map.entry("remaining", "Remaining"),
                 Map.entry("limit", "Limit"),
                 Map.entry("periodDaily", spanish ? "Diario" : "Daily"),
@@ -334,6 +344,7 @@ class McpAppsUiTest {
     private static Map<String, Object> transactionLabels() {
         return Map.of("locale", "en", "labels", Map.ofEntries(
                 Map.entry("title", "New transaction"),
+                Map.entry("subtitle", "Capture the essentials now."),
                 Map.entry("loading", "Loading options…"), Map.entry("type", "Type"),
                 Map.entry("typeAccessible", "Transaction type"),
                 Map.entry("expense", "Expense"), Map.entry("income", "Income"),
@@ -342,6 +353,8 @@ class McpAppsUiTest {
                 Map.entry("category", "Category"),
                 Map.entry("description", "Description"),
                 Map.entry("optional", "(optional)"),
+                Map.entry("saveExpense", "Save expense"),
+                Map.entry("saveIncome", "Save income"),
                 Map.entry("namePlaceholder", "E.g. Lunch"),
                 Map.entry("amountPlaceholder", "E.g. 12.50"),
                 Map.entry("dateExample", "E.g. 10/26/2026"),

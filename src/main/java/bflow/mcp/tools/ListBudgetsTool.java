@@ -45,7 +45,8 @@ public class ListBudgetsTool {
      * @return a user-friendly summary, with detailed app-only data in MCP metadata.
      */
     @McpTool(title = "List budgets",
-            description = "Show the user's budgets across every wallet. Use "
+            description = "No arguments are required. Show the user's budgets across "
+                    + "every wallet. Use "
                     + "this to answer questions about budget limits and current progress. "
                     + "Present periods in the user's language. The result uses everyday "
                     + "language and does not expose internal IDs.",
