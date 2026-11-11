@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -12,7 +13,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import bflow.mcp.i18n.MessageService;
 
-/** Builds localized JSON fallbacks and payloads for cacheable MCP App HTML. */
+/** Builds localized tool responses and payloads for cacheable MCP App HTML. */
 @Component
 public class McpUiPayloadFactory {
 
@@ -38,12 +39,13 @@ public class McpUiPayloadFactory {
      * @param rawBudgets raw JSON returned by BFlow.
      * @return a useful JSON fallback and MCP App payload.
      */
-    public String budgets(final String rawBudgets) {
+    public CallToolResult budgets(final String rawBudgets) {
         Map<String, String> labels = Map.ofEntries(
                 Map.entry("title", messageService.get("ui.budgets.title")),
                 Map.entry("empty", messageService.get("ui.budgets.empty")),
                 Map.entry("loading", messageService.get("ui.budgets.loading")),
                 Map.entry("retry", messageService.get("ui.budgets.retry")),
+                Map.entry("refresh", messageService.get("ui.budgets.refresh")),
                 Map.entry("progress", messageService.get("ui.budgets.progress")),
                 Map.entry("spent", messageService.get("ui.budgets.spent")),
                 Map.entry("remaining", messageService.get("ui.budgets.remaining")),
@@ -53,11 +55,35 @@ public class McpUiPayloadFactory {
                 Map.entry("periodMonthly", messageService.get("ui.budgets.period.monthly")),
                 Map.entry("periodYearly", messageService.get("ui.budgets.period.yearly")),
                 Map.entry("periodUnknown", messageService.get("ui.budgets.period.unknown")),
-                Map.entry("progressUnavailable", messageService.get(
-                        "ui.budgets.progressUnavailable")));
+                Map.entry("progressUnavailable", messageService.get("ui.budgets.progressUnavailable")),
+                Map.entry("percentUsed", messageService.get("ui.budgets.percentUsed")),
+                Map.entry("search", messageService.get("ui.budgets.search")),
+                Map.entry("all", messageService.get("ui.budgets.all")),
+                Map.entry("monthly", messageService.get("ui.budgets.monthly")),
+                Map.entry("weekly", messageService.get("ui.budgets.weekly")),
+                Map.entry("yearly", messageService.get("ui.budgets.yearly")),
+                Map.entry("daily", messageService.get("ui.budgets.daily")),
+                Map.entry("wallet", messageService.get("ui.budgets.wallet")),
+                Map.entry("category", messageService.get("ui.budgets.category")),
+                Map.entry("healthy", messageService.get("ui.budgets.healthy")),
+                Map.entry("statusUnavailable", messageService.get("ui.budgets.statusUnavailable")),
+                Map.entry("warning", messageService.get("ui.budgets.warning")),
+                Map.entry("critical", messageService.get("ui.budgets.critical")),
+                Map.entry("daysLeft", messageService.get("ui.budgets.daysLeft")));
         Object data = readBudgetData(rawBudgets, labels.get("progressUnavailable"));
-        return serializePayload(data, labels,
-                messageService.get("ui.budgets.progressUnavailable.detail"));
+        Map<String, Object> appPayload = new LinkedHashMap<>();
+        appPayload.put("locale", LocaleContextHolder.getLocale().toLanguageTag());
+        appPayload.put("labels", labels);
+        appPayload.put("data", data);
+        appPayload.put("fallbackText", messageService.get("ui.budgets.progressUnavailable"));
+        try {
+            return CallToolResult.builder()
+                    .addTextContent(budgetSummary(data))
+                    .meta(Map.of("io.bflow/budgets", appPayload))
+                    .build();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to serialize MCP budget result", exception);
+        }
     }
 
     /**
@@ -78,6 +104,9 @@ public class McpUiPayloadFactory {
                 Map.entry("date", messageService.get("ui.transaction.date")),
                 Map.entry("wallet", messageService.get("ui.transaction.wallet")),
                 Map.entry("category", messageService.get("ui.transaction.category")),
+                Map.entry("categoryOptional", messageService.get("ui.transaction.category.optional")),
+                Map.entry("categoryNone", messageService.get("ui.transaction.category.none")),
+                Map.entry("categoryHelp", messageService.get("ui.transaction.category.help")),
                 Map.entry("description", messageService.get("ui.transaction.description")),
                 Map.entry("optional", messageService.get("ui.transaction.optional")),
                 Map.entry("namePlaceholder", messageService.get(
@@ -141,30 +170,96 @@ public class McpUiPayloadFactory {
         if (!(data instanceof JsonNode root) || !root.isObject()) {
             return data;
         }
-        JsonNode budgets = root.path("data").path("content");
+        JsonNode budgets = root.path("data");
         if (budgets.isArray()) {
+            return root;
+        }
+        budgets = root.path("data").path("content");
+        if (budgets.isArray()) {
+            ObjectNode sanitized = objectMapper.createObjectNode();
+            sanitized.put("count", budgets.size());
+            var items = objectMapper.createArrayNode();
             budgets.forEach(item -> {
-                if (item instanceof ObjectNode budget
-                        && (isMissing(budget.get("spent"))
-                        || isMissing(budget.get("remaining"))
-                        || isMissing(budget.get("percentage")))) {
-                    ObjectNode display = objectMapper.createObjectNode();
-                    display.put("spent", displayValue(budget.get("spent")));
-                    display.put("remaining", displayValue(budget.get("remaining")));
-                    display.put("percentage", displayValue(budget.get("percentage")));
-                    display.put("status", unavailableLabel);
-                    budget.set("progressDisplay", display);
+                if (item instanceof ObjectNode budget) {
+                    ObjectNode view = objectMapper.createObjectNode();
+                    copy(budget, view, "walletName", "categoryName", "name", "period",
+                            "scope", "budgetLimit", "currency", "spent", "remaining",
+                            "percentage", "status", "startDate", "endDate", "daysLeft");
+                    if (isMissing(view.get("spent")) || isMissing(view.get("remaining"))
+                            || isMissing(view.get("percentage"))) {
+                        view.remove("spent");
+                        view.remove("remaining");
+                        view.remove("percentage");
+                        view.put("progressAvailable", false);
+                    } else {
+                        view.put("progressAvailable", true);
+                    }
+                    view.put("progressUnavailableLabel", unavailableLabel);
+                    items.add(view);
                 }
             });
+            sanitized.set("budgets", items);
+            return sanitized;
         }
-        return root;
+        return data;
     }
 
     private boolean isMissing(final JsonNode value) {
         return value == null || value.isNull();
     }
 
-    private String displayValue(final JsonNode value) {
-        return isMissing(value) ? "—" : value.toString();
+    private void copy(final ObjectNode source, final ObjectNode target,
+            final String... fields) {
+        for (String field : fields) {
+            JsonNode value = source.get(field);
+            if (!isMissing(value)) {
+                target.set(field, value);
+            }
+        }
+    }
+
+    private String budgetSummary(final Object data) {
+        if (!(data instanceof JsonNode node)) {
+            return messageService.get("ui.budgets.empty");
+        }
+        JsonNode budgets = node.path("budgets");
+        if (!budgets.isArray() || budgets.size() == 0) {
+            return messageService.get("ui.budgets.empty");
+        }
+        String summaryMessage = budgets.size() == 1
+                ? messageService.get("ui.budgets.summary.one")
+                : messageService.get("ui.budgets.summary.many", budgets.size());
+        StringBuilder summary = new StringBuilder(summaryMessage);
+        for (JsonNode budget : budgets) {
+            String name = stringValue(budget.path("walletName"), stringValue(
+                    budget.path("categoryName"), messageService.get("ui.budgets.nameFallback")));
+            String periodCode = stringValue(budget.path("period"), "");
+            String period = periodCode.isBlank() ? "" : messageService.get(
+                    "ui.budgets.period." + periodCode.toLowerCase(LocaleContextHolder.getLocale()));
+            summary.append("\n• ").append(name).append(" — ")
+                    .append(period).append(": ")
+                    .append(stringValue(budget.path("currency"), ""))
+                    .append(' ').append(stringValue(budget.path("budgetLimit"), ""));
+            if (budget.path("progressAvailable").asBoolean(false)) {
+                summary.append("; ").append(messageService.get("ui.budgets.spent"))
+                        .append(' ').append(stringValue(budget.path("currency"), ""))
+                        .append(' ').append(stringValue(budget.path("spent"), ""))
+                        .append(", ").append(messageService.get("ui.budgets.remaining"))
+                        .append(' ').append(stringValue(budget.path("currency"), ""))
+                        .append(' ').append(stringValue(budget.path("remaining"), ""))
+                        .append(" ( ").append(messageService.get("ui.budgets.percentUsed"))
+                        .append(' ').append(stringValue(budget.path("percentage"), ""))
+                        .append("% )");
+            } else {
+                summary.append("; ").append(messageService.get(
+                        "ui.budgets.progressUnavailable"));
+            }
+        }
+        return summary.toString();
+    }
+
+    private String stringValue(final JsonNode node, final String fallback) {
+        return node == null || node.isMissingNode() || node.isNull()
+                ? fallback : node.asStringOpt().orElse(node.toString());
     }
 }

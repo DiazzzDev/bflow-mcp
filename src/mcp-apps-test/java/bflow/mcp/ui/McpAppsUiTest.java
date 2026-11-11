@@ -82,20 +82,23 @@ class McpAppsUiTest {
                     + "\"currency\":\"USD\",\"spent\":null,"
                     + "\"remaining\":null,\"budgetLimit\":100,"
                     + "\"percentage\":null}]}}");
-            app.getByText("Sin datos de progreso").waitFor();
+            app.locator("p.unavailable").waitFor();
+            assertThat(app.locator("p.unavailable").innerText())
+                    .isEqualTo("Sin datos de progreso");
             assertThat(app.locator("body").innerText()).contains("Sin datos de progreso")
                     .contains("—").contains("Mensual").doesNotContain("MONTHLY");
-            assertThat(app.locator("progress").count()).isZero();
+            assertThat(app.locator("[role=progressbar]").count()).isZero();
 
             sendResult(page, Map.of("locale", "es", "labels", budgetLabels(
                     "Presupuestos", "Cargando presupuestos…",
                     "No hay presupuestos para mostrar.", "Reintentar"),
                     "data", Map.of("content", List.of(Map.of("period", "MONTHLY",
                             "currency", "USD", "spent", 25.5, "remaining", 74.5,
-                            "budgetLimit", 100, "percentage", 25.5)))));
+                            "budgetLimit", 100, "percentage", 25.5,
+                            "progressAvailable", true)))));
             assertThat(app.locator("body").innerText()).contains("Presupuestos")
                     .contains("25,50");
-            assertThat(app.locator("progress").count()).isEqualTo(1);
+            assertThat(app.locator("[role=progressbar]").count()).isEqualTo(1);
             assertThat(app.locator("html").getAttribute("data-theme")).isEqualTo("dark");
             assertThat(externalRequests).isEmpty();
         }
@@ -157,7 +160,7 @@ class McpAppsUiTest {
             assertThat(app.locator("#status").innerText()).isEmpty();
             assertThat(app.locator("main").getAttribute("aria-busy")).isEqualTo("false");
             assertThat(app.locator("#wallet").inputValue()).isEqualTo("w-default");
-            assertThat(app.locator("#category").inputValue()).isEqualTo("c1");
+            assertThat(app.locator("#category").inputValue()).isEmpty();
             assertThat(app.locator("#expense").getAttribute("aria-pressed"))
                     .isEqualTo("true");
             assertThat(app.locator("#type-label").count()).isZero();
@@ -181,7 +184,8 @@ class McpAppsUiTest {
             app.locator("#income").click();
             assertThat(app.locator("#income").getAttribute("aria-pressed"))
                     .isEqualTo("true");
-            assertThat(app.locator("#category").inputValue()).isEqualTo("c2");
+            assertThat(app.locator("#category").inputValue()).isEmpty();
+            app.locator("#category").selectOption("c2");
             app.locator("#name").fill("Lunch");
             app.locator("#amount").fill("12.50");
             app.locator("#date").fill("2026-10-25");
@@ -207,15 +211,16 @@ class McpAppsUiTest {
             page.setContent(harness("transaction-form.html", "light"));
             Frame app = awaitApp(page, "transaction-form.html");
             sendResult(page, transactionLabels());
-            sendToolResponse(page, "listWallets", Map.of("code", "SCOPE_DENIED",
-                    "message", "Missing bflow-mcp/wallets.read", "retryable", false));
+            sendToolResponse(page, "listWallets", Map.of("isError", true,
+                    "content", List.of(Map.of("type", "text",
+                            "text", "This connection does not have access to this option."))));
             sendToolResponse(page, "listCategories", Map.of("data", Map.of("content",
                     List.of(Map.of("id", "c1", "name", "Food")))));
 
             assertThat(app.locator("#wallet-error").innerText())
-                    .contains("bflow-mcp/wallets.read");
+                    .contains("does not have access");
             assertThat(app.locator("#wallet").inputValue()).isEmpty();
-            assertThat(app.locator("#category").inputValue()).isEqualTo("c1");
+            assertThat(app.locator("#category").inputValue()).isEmpty();
             assertThat(app.locator("#submit").isDisabled()).isTrue();
         }
     }
@@ -230,14 +235,15 @@ class McpAppsUiTest {
             sendResult(page, transactionLabels());
             sendToolResponse(page, "listWallets", Map.of("data", Map.of("content",
                     List.of(Map.of("id", "w1", "name", "Wallet")))));
-            sendToolResponse(page, "listCategories", Map.of("code", "SCOPE_DENIED",
-                    "message", "Missing bflow-mcp/categories.read", "retryable", false));
+            sendToolResponse(page, "listCategories", Map.of("isError", true,
+                    "content", List.of(Map.of("type", "text",
+                            "text", "This connection does not have access to this option."))));
 
             assertThat(app.locator("#wallet").inputValue()).isEqualTo("w1");
             assertThat(app.locator("#category-error").innerText())
-                    .contains("bflow-mcp/categories.read");
+                    .contains("does not have access");
             assertThat(app.locator("#category").inputValue()).isEmpty();
-            assertThat(app.locator("#submit").isDisabled()).isTrue();
+            assertThat(app.locator("#submit").isDisabled()).isFalse();
         }
     }
 
@@ -349,7 +355,7 @@ class McpAppsUiTest {
     private static String harness(final String resource, final String theme) {
         return "<iframe src='" + baseUrl + "/" + resource + "'></iframe>"
                 + "<script>window.calls=[];window.toolRequests=[];window.protocolErrors=[];window.initialized=false;"
-                + "window.reply=(name,result)=>{const request=window.toolRequests.find(item=>item.params.name===name&&!item.replied);if(!request)throw Error('No pending '+name+' request');request.replied=true;document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:request.id,result:{content:[{type:'text',text:JSON.stringify(result)}]}},'*')};"
+                + "window.reply=(name,result)=>{const request=window.toolRequests.find(item=>item.params.name===name&&!item.replied);if(!request)throw Error('No pending '+name+' request');request.replied=true;const payload=result&&result.isError?result:{content:[{type:'text',text:JSON.stringify(result)}]};document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:request.id,result:payload},'*')};"
                 + "window.sizeChanged=0;window.addEventListener('message',e=>{const d=e.data||{};"
                 + "if(d.method==='ui/initialize'){if(!d.params?.appInfo)window.protocolErrors.push('missing appInfo');"
                 + "if(!d.params?.protocolVersion)window.protocolErrors.push('missing protocolVersion');"

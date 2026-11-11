@@ -35,7 +35,7 @@
         <span class="date-presets"><button id="today" type="button"></button><button id="yesterday" type="button"></button></span>
       </label>
       <label><span id="wallet-label"></span><select id="wallet" required></select><span id="wallet-error" class="error" role="status"></span></label>
-      <label><span id="category-label"></span><select id="category" required></select><span id="category-error" class="error" role="status"></span></label>
+      <label><span><span id="category-label"></span> <span id="category-optional" class="optional"></span></span><select id="category"></select><span id="category-hint" class="hint"></span><span id="category-error" class="error" role="status"></span></label>
       <label><span><span id="description-label"></span> <span id="description-optional" class="optional"></span></span><textarea id="description" maxlength="100"></textarea></label>
       <button id="submit" type="submit" disabled></button>
     </form>
@@ -86,11 +86,19 @@
       const select = (id, items, emptyMessage) => {
         const node = document.querySelector('#' + id);
         node.replaceChildren();
+        if (id === 'category') {
+          const none = document.createElement('option');
+          none.value = '';
+          none.textContent = labels.categoryNone || '';
+          node.append(none);
+        }
         if (!items.length) {
-          const option = document.createElement('option');
-          option.value = '';
-          option.textContent = emptyMessage;
-          node.append(option);
+          if (id !== 'category') {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = emptyMessage;
+            node.append(option);
+          }
           return;
         }
         const ordered = id === 'wallet'
@@ -105,9 +113,7 @@
       };
 
       const updateSubmit = () => {
-        submit.disabled = !(walletsLoaded && categoriesLoaded
-          && document.querySelector('#wallet').value
-          && document.querySelector('#category').value);
+        submit.disabled = !(walletsLoaded && document.querySelector('#wallet').value);
       };
 
       const renderCategoriesForType = () => {
@@ -149,6 +155,10 @@
           renderLookupError(kind, payload);
           return;
         }
+        if (typeof payload === 'string') {
+          renderLookupError(kind, {message: payload, retryable: false});
+          return;
+        }
         const data = records(payload);
         if (kind === 'wallets') {
           select('wallet', data, labels.walletEmpty || '');
@@ -177,7 +187,7 @@
           try {
             return JSON.parse(result.content[0].text);
           } catch (_) {
-            return result;
+            return result.content[0].text;
           }
         }
         return result;
@@ -217,6 +227,8 @@
           document.querySelector('#' + key + '-label').textContent = labels[key] || '';
         });
         document.querySelector('#description-optional').textContent = labels.optional || '';
+        document.querySelector('#category-optional').textContent = labels.categoryOptional || '';
+        document.querySelector('#category-hint').textContent = labels.categoryHelp || '';
         document.querySelector('#name').placeholder = labels.namePlaceholder || '';
         document.querySelector('#amount').placeholder = labels.amountPlaceholder || '';
         document.querySelector('#description').placeholder = labels.descriptionPlaceholder || '';

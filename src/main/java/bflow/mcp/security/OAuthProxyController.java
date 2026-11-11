@@ -24,6 +24,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 /**
  * OAuth proxy in front of Cognito's real {@code /oauth2/authorize} and
@@ -177,7 +178,7 @@ public class OAuthProxyController {
 
         params.forEach((key, value) -> {
             if (!SUBSTITUTED_PARAMS.contains(key)) {
-                target.queryParam(key, value);
+                target.queryParam(encodeQueryParam(key), encodeQueryParam(value));
             }
         });
 
@@ -185,14 +186,14 @@ public class OAuthProxyController {
         // bypasses Cognito Managed Login when the client did not choose an IdP.
         if (StringUtils.hasText(defaultIdentityProvider)
                 && !params.containsKey(IDENTITY_PROVIDER_PARAM)) {
-            target.queryParam(IDENTITY_PROVIDER_PARAM, defaultIdentityProvider);
+            target.queryParam(encodeQueryParam(IDENTITY_PROVIDER_PARAM), encodeQueryParam(defaultIdentityProvider));
         }
 
-        target.queryParam("client_id", cognitoAppClientId);
-        target.queryParam("redirect_uri", cognitoFacingCallbackUri());
-        target.queryParam("state", outerState);
+        target.queryParam(encodeQueryParam("client_id"), encodeQueryParam(cognitoAppClientId));
+        target.queryParam(encodeQueryParam("redirect_uri"), encodeQueryParam(cognitoFacingCallbackUri()));
+        target.queryParam(encodeQueryParam("state"), encodeQueryParam(outerState));
 
-        return new RedirectView(target.build().toUriString());
+        return new RedirectView(target.build(true).toUriString());
     }
 
     /**
@@ -224,19 +225,29 @@ public class OAuthProxyController {
                 .fromUriString(callbackState.realRedirectUri());
 
         if (params.containsKey("code")) {
-            target.queryParam("code", params.get("code"));
+            target.queryParam("code", encodeQueryParam(params.get("code")));
         }
         if (params.containsKey("error")) {
-            target.queryParam("error", params.get("error"));
+            target.queryParam("error", encodeQueryParam(params.get("error")));
         }
         if (params.containsKey("error_description")) {
-            target.queryParam("error_description", params.get("error_description"));
+            target.queryParam("error_description", encodeQueryParam(params.get("error_description")));
         }
         if (callbackState.realState() != null) {
-            target.queryParam("state", callbackState.realState());
+            target.queryParam("state", encodeQueryParam(callbackState.realState()));
         }
 
-        return new RedirectView(target.build().toUriString());
+        return new RedirectView(target.build(true).toUriString());
+    }
+
+    /**
+     * Encodes a decoded OAuth query parameter value so reserved characters
+     * such as {@code +}, {@code &}, and {@code #} survive a client round trip.
+     * @param value the decoded key or value.
+     * @return a query-param encoded value, or {@code null} when the input is null.
+     */
+    private static String encodeQueryParam(final String value) {
+        return value == null ? null : UriUtils.encode(value, StandardCharsets.UTF_8);
     }
 
     /**

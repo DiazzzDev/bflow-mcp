@@ -29,7 +29,7 @@ public class OpenTransactionFormTool {
      */
     @McpTool(title = "Open transaction form",
             description = "Open a form to enter an expense or income and "
-                    + "choose its wallet and category.",
+                    + "choose its wallet. Category and description are optional.",
             annotations = @McpTool.McpAnnotations(title = "Open transaction form",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false),

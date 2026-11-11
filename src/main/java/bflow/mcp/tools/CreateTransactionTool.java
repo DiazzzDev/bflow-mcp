@@ -1,6 +1,5 @@
 package bflow.mcp.tools;
 
-import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -77,9 +76,9 @@ public class CreateTransactionTool {
      * @param type either {@code EXPENSE} or {@code INCOME}.
      * @param title short title, 1-50 characters.
      * @param amount the transaction amount, must be positive.
-     * @param date the transaction date, must not be in the future.
+     * @param date optional transaction date; defaults to today.
      * @param walletId the id of the wallet this belongs to.
-     * @param categoryId the id of the category this belongs to.
+     * @param categoryId optional category id.
      * @param description optional longer description, up to 100 characters.
      * @param idempotencyKey optional — pass the SAME value again if
      *      retrying this exact call after an unclear result (timeout,
@@ -95,7 +94,8 @@ public class CreateTransactionTool {
             description = "Record a one-time expense or income. Get a "
                     + "preview first, show it to the user and execute only "
                     + "after approval with confirmed=true. Reuse the same "
-                    + "idempotencyKey only when retrying an unclear result.",
+                    + "idempotencyKey only when retrying an unclear result. Keep IDs "
+                    + "and API field names out of the final reply.",
             annotations = @McpTool.McpAnnotations(title = "Create transaction",
                     readOnlyHint = false, destructiveHint = false,
                     idempotentHint = false, openWorldHint = false),
@@ -105,11 +105,11 @@ public class CreateTransactionTool {
             @McpToolParam(description = "EXPENSE or INCOME") final String type,
             @McpToolParam(description = "Short title, 1-50 characters") final String title,
             @McpToolParam(description = "Amount, must be positive") final double amount,
-            @McpToolParam(description = "Date in YYYY-MM-DD format, not in the future")
+            @McpToolParam(description = "Optional date in YYYY-MM-DD format; defaults to today", required = false)
                 final String date,
             @McpToolParam(description = "Wallet id this transaction belongs to")
                 final String walletId,
-            @McpToolParam(description = "Category id this transaction belongs to")
+            @McpToolParam(description = "Optional category id", required = false)
                 final String categoryId,
             @McpToolParam(description = "Optional longer description, up to "
                     + "100 characters", required = false)
@@ -125,12 +125,13 @@ public class CreateTransactionTool {
                 final Boolean confirmed) {
 
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("title", title);
-        body.put("description", description);
+        body.put("title", ToolInputValidator.requiredText(title, "title", 50));
+        body.put("description", ToolInputValidator.optionalText(description, "description", 100));
+        ToolInputValidator.positiveAmount(amount);
         body.put("amount", amount);
-        body.put("date", LocalDate.parse(date).toString());
-        body.put("walletId", walletId);
-        body.put("categoryId", categoryId);
+        body.put("date", ToolInputValidator.transactionDate(date, "date").toString());
+        body.put("walletId", ToolInputValidator.uuid(walletId, "walletId"));
+        body.put("categoryId", ToolInputValidator.optionalUuid(categoryId, "categoryId"));
         body.put("recurring", false);
         body.put("source", TRANSACTION_SOURCE);
 

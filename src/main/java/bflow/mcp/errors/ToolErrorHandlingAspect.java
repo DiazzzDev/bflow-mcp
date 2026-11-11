@@ -8,6 +8,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 import org.springframework.ai.mcp.annotation.McpTool;
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Configuration;
@@ -18,19 +19,15 @@ import org.springframework.web.client.ResourceAccessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import tools.jackson.databind.ObjectMapper;
-
 import bflow.mcp.i18n.MessageService;
-import bflow.mcp.security.RequiresScope;
 
 /**
  * Wraps every {@code @McpTool}-annotated method and translates any
  * exception it throws — including one thrown by
  * {@link bflow.mcp.security.RequiresScopeAspect}'s scope check, which
- * runs "inside" this advice, see its lower {@code @Order} — into the
- * structured {@link ToolError} shape (ADR-0010 §8), instead of letting a
- * raw exception (stack trace, SQL state, connection details) reach the
- * AI client.
+ * runs "inside" this advice, see its lower {@code @Order} — into a short,
+ * localized message instead of letting raw exceptions or upstream
+ * validation details reach the AI client.
  *
  * <p>This is the outermost advice on every tool method: it must run
  * first so it can catch exceptions from every other aspect too, hence
@@ -48,20 +45,14 @@ public class ToolErrorHandlingAspect {
     /** Advisor precedence: lower runs first / wraps everyone else. */
     private static final int ADVISOR_ORDER = 0;
 
-    /** Serializes {@link ToolError} to the JSON string tools return. */
-    private final ObjectMapper objectMapper;
-
     /** Resolves visible errors for the active request locale. */
     private final MessageService messageService;
 
     /**
      * Creates the error translation advice.
-     * @param objectMapper JSON serializer supplied by Spring.
      * @param messageService request-localized message facade.
      */
-    public ToolErrorHandlingAspect(final ObjectMapper objectMapper,
-            final MessageService messageService) {
-        this.objectMapper = objectMapper;
+    public ToolErrorHandlingAspect(final MessageService messageService) {
         this.messageService = messageService;
     }
 
@@ -86,7 +77,13 @@ public class ToolErrorHandlingAspect {
             try {
                 return invocation.proceed();
             } catch (Exception ex) {
-                return toJson(translate(invocation.getMethod(), ex));
+                ToolError error = translate(invocation.getMethod(), ex);
+                if (CallToolResult.class.isAssignableFrom(
+                        invocation.getMethod().getReturnType())) {
+                    return CallToolResult.builder().addTextContent(error.message())
+                            .isError(true).build();
+                }
+                return error.message();
             }
         };
     }
@@ -95,12 +92,9 @@ public class ToolErrorHandlingAspect {
         LOG.warn("Tool '{}' failed: {}", method.getName(), ex.toString());
 
         if (ex instanceof AccessDeniedException) {
-            RequiresScope requiredScope = method.getAnnotation(RequiresScope.class);
-            String scope = requiredScope == null ? ""
-                    : requiredScope.value();
             return new ToolError(
                     "SCOPE_DENIED",
-                    messageService.get("tool.error.scopeDenied", scope),
+                    messageService.get("tool.error.scopeDenied"),
                     false);
         }
 
@@ -129,13 +123,10 @@ public class ToolErrorHandlingAspect {
     }
 
     private ToolError translateHttpStatus(final HttpStatusCodeException httpEx) {
-        String upstreamMessage = extractMessage(httpEx.getResponseBodyAsString());
-
         return switch (httpEx.getStatusCode().value()) {
             case 400 -> new ToolError(
                     "VALIDATION_ERROR",
-                    upstreamMessage != null ? upstreamMessage
-                            : messageService.get("tool.error.validation"),
+                    messageService.get("tool.error.validation"),
                     false);
             case 401 -> new ToolError(
                     "UNAUTHENTICATED",
@@ -151,8 +142,7 @@ public class ToolErrorHandlingAspect {
                     false);
             case 409 -> new ToolError(
                     "CONFLICT",
-                    upstreamMessage != null ? upstreamMessage
-                            : messageService.get("tool.error.conflict"),
+                    messageService.get("tool.error.conflict"),
                     false);
             default -> httpEx.getStatusCode().is5xxServerError()
                     ? new ToolError(
@@ -166,31 +156,4 @@ public class ToolErrorHandlingAspect {
         };
     }
 
-    /**
-     * Best-effort extraction of BFlow's own {@code ApiResponse.message}
-     * field from an error response body, so the AI client sees the same
-     * human-readable message a web user would — never the raw body.
-     * @param responseBody the raw response body, possibly not JSON.
-     * @return the extracted message, or {@code null} if unavailable.
-     */
-    private String extractMessage(final String responseBody) {
-        try {
-            var node = objectMapper.readTree(responseBody);
-            var message = node.get("message");
-            return message != null ? message.asStringOpt().orElse(null) : null;
-        } catch (Exception parseFailure) {
-            return null;
-        }
-    }
-
-    private String toJson(final ToolError error) {
-        try {
-            return objectMapper.writeValueAsString(error);
-        } catch (Exception neverHappens) {
-            return "{\"code\":\"INTERNAL_ERROR\","
-                    + "\"message\":\"" + messageService.get(
-                            "tool.error.internal") + "\","
-                    + "\"retryable\":false}";
-        }
-    }
 }

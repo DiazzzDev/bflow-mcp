@@ -76,9 +76,8 @@ class ListWalletsToolIntegrationTest extends AbstractToolIntegrationTest {
         String result = listWalletsTool.listWallets();
 
         assertThat(result)
-                .contains("\"code\":\"SCOPE_DENIED\"")
-                .contains("bflow-mcp/wallets.read")
-                .contains("\"retryable\":false");
+                .doesNotContain("SCOPE_DENIED", "retryable", "{\"")
+                .contains("permission");
         mockBflowApi.verify();
     }
 
@@ -93,7 +92,8 @@ class ListWalletsToolIntegrationTest extends AbstractToolIntegrationTest {
 
         String result = listWalletsTool.listWallets();
 
-        assertThat(result).contains("\"code\":\"RESOURCE_ACCESS_DENIED\"");
+        assertThat(result).contains("do not have access")
+                .doesNotContain("RESOURCE_ACCESS_DENIED", "Not your wallet");
         mockBflowApi.verify();
     }
 }

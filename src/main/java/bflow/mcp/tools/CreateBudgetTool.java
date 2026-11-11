@@ -1,6 +1,5 @@
 package bflow.mcp.tools;
 
-import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -59,7 +58,7 @@ public class CreateBudgetTool {
      * @param currency the currency this amount is denominated in — must
      *      match the wallet's own currency (e.g. {@code USD}).
      * @param period how often the budget resets: {@code DAILY},
-     *      {@code WEEKLY}, or {@code MONTHLY}.
+     *      {@code WEEKLY}, {@code MONTHLY}, or {@code YEARLY}.
      * @param startDate the date the budget period starts, YYYY-MM-DD.
      * @param thresholdWarning optional warning alert threshold, 1-99
      *      (percent of budget spent). Defaults to 70 if omitted.
@@ -74,7 +73,8 @@ public class CreateBudgetTool {
             description = "Create a wallet-wide budget for the requested "
                     + "amount, currency, period and start date. Call first "
                     + "without confirmed to show a preview; execute only "
-                    + "after the user approves it, then call with confirmed=true.",
+                    + "after the user approves it, then call with confirmed=true. "
+                    + "Never show internal IDs or API field names to the user.",
             annotations = @McpTool.McpAnnotations(title = "Create budget",
                     readOnlyHint = false, destructiveHint = false,
                     idempotentHint = false, openWorldHint = false),
@@ -88,7 +88,7 @@ public class CreateBudgetTool {
             @McpToolParam(description = "Currency, must match the wallet's "
                     + "own currency, e.g. USD, EUR, MXN")
                 final String currency,
-            @McpToolParam(description = "DAILY, WEEKLY, or MONTHLY")
+            @McpToolParam(description = "DAILY, WEEKLY, MONTHLY, or YEARLY")
                 final String period,
             @McpToolParam(description = "Start date in YYYY-MM-DD format")
                 final String startDate,
@@ -104,17 +104,25 @@ public class CreateBudgetTool {
                 final Boolean confirmed) {
 
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("walletId", walletId);
+        body.put("walletId", ToolInputValidator.uuid(walletId, "walletId"));
+        ToolInputValidator.positiveAmount(amount);
         body.put("amount", amount);
-        body.put("currency", currency.toUpperCase());
-        body.put("period", period.toUpperCase());
-        body.put("startDate", LocalDate.parse(startDate).toString());
+        body.put("currency", ToolInputValidator.enumValue(currency, "currency", "USD", "EUR", "MXN"));
+        body.put("period", ToolInputValidator.enumValue(period, "period", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"));
+        body.put("startDate", ToolInputValidator.dateOrToday(startDate, "startDate").toString());
         body.put("scope", "WALLET");
         if (thresholdWarning != null) {
+            validateThreshold(thresholdWarning, "thresholdWarning");
             body.put("thresholdWarning", thresholdWarning);
         }
         if (thresholdCritical != null) {
+            validateThreshold(thresholdCritical, "thresholdCritical");
             body.put("thresholdCritical", thresholdCritical);
+        }
+        int effectiveWarning = thresholdWarning == null ? 70 : thresholdWarning;
+        int effectiveCritical = thresholdCritical == null ? 90 : thresholdCritical;
+        if (effectiveCritical <= effectiveWarning) {
+            throw new IllegalArgumentException("thresholdCritical must be above thresholdWarning");
         }
 
         String preview = confirmationGate.checkOrNull(
@@ -124,5 +132,11 @@ public class CreateBudgetTool {
         }
 
         return bflowApiClient.post("/api/v1/budgets", body, String.class);
+    }
+
+    private void validateThreshold(final int value, final String field) {
+        if (value < 1 || value > 99) {
+            throw new IllegalArgumentException(field + " must be between 1 and 99");
+        }
     }
 }

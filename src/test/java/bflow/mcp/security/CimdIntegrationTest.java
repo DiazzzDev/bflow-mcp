@@ -86,7 +86,7 @@ class CimdIntegrationTest extends AbstractToolIntegrationTest {
 
         assertThat(redirect.getUrl()).startsWith("https://example.auth.us-east-1.amazoncognito.com/oauth2/authorize");
         assertThat(redirect.getUrl()).contains("client_id=test-real-cognito-app-client-id");
-        assertThat(redirect.getUrl()).contains("redirect_uri=http://localhost:8081/oauth/callback");
+        assertThat(redirect.getUrl()).contains("redirect_uri=http%3A%2F%2Flocalhost%3A8081%2Foauth%2Fcallback");
         assertThat(redirect.getUrl()).contains("code_challenge=abc123");
         assertThat(redirect.getUrl()).doesNotContain("mcp-oauth-client-metadata");
         assertThat(redirect.getUrl()).doesNotContain("state=callers-original-state");
@@ -109,6 +109,40 @@ class CimdIntegrationTest extends AbstractToolIntegrationTest {
         assertThat(callback.getUrl()).startsWith(REDIRECT_URI);
         assertThat(callback.getUrl()).contains("code=cognito-issued-code");
         assertThat(callback.getUrl()).contains("state=callers-original-state");
+    }
+
+    @Test
+    void authorizeEncodesForwardedQueryParametersExactlyOnce() {
+        var registration = registrationController.register(
+                new ClientRegistrationController.ClientRegistrationRequest(
+                        "Test Client", List.of(REDIRECT_URI)));
+        @SuppressWarnings("unchecked")
+        String dcrClientId = (String) ((Map<String, Object>) registration.getBody()).get("client_id");
+
+        RedirectView redirect = proxyController.authorize(Map.of(
+                "client_id", dcrClientId,
+                "redirect_uri", REDIRECT_URI,
+                "state", "original+state&part#fragment",
+                "scope", "transactions.read budgets.read"));
+
+        assertThat(redirect.getUrl()).contains("scope=transactions.read%20budgets.read");
+        assertThat(redirect.getUrl()).contains("redirect_uri=http%3A%2F%2Flocalhost%3A8081%2Foauth%2Fcallback");
+    }
+
+    @Test
+    void callbackPreservesReservedCharactersInCallerState() throws IOException {
+        stubDocument(CLIENT_ID, REDIRECT_URI);
+        RedirectView authorize = proxyController.authorize(Map.of(
+                "client_id", CLIENT_ID,
+                "redirect_uri", REDIRECT_URI,
+                "state", "original+state&part#fragment"));
+        String outerState = UriComponentsBuilder.fromUriString(authorize.getUrl())
+                .build().getQueryParams().getFirst("state");
+
+        RedirectView callback = proxyController.callback(Map.of("code", "code+value", "state", outerState));
+
+        assertThat(callback.getUrl()).contains("code=code%2Bvalue");
+        assertThat(callback.getUrl()).contains("state=original%2Bstate%26part%23fragment");
     }
 
     @Test

@@ -41,7 +41,8 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
 
     /** Read tools intentionally exposed without MCP App metadata. */
     private static final Set<String> TEXT_ONLY_TOOL_NAMES = Set.of(
-            "listWallets", "listCategories", "listTransactions", "listRecurring");
+            "listWallets", "listCategories", "listTransactions", "listRecurring",
+            "getCurrentAccount");
 
     /** HTTP client for the actual /mcp endpoint. */
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -100,7 +101,8 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
             assertThat(annotations.path("readOnlyHint").booleanValue())
                     .as("readOnlyHint annotation: %s", tool)
                     .isEqualTo(Set.of("listBudgets", "listWallets", "listCategories",
-                            "listTransactions", "listRecurring", "openTransactionForm")
+                            "listTransactions", "listRecurring", "openTransactionForm",
+                            "getCurrentAccount")
                             .contains(toolName));
             assertThat(annotations.path("destructiveHint").isBoolean())
                     .as("destructiveHint annotation: %s", tool).isTrue();
@@ -113,7 +115,8 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
                     .as("idempotentHint annotation: %s", tool)
                     .isEqualTo("updateTransaction".equals(toolName)
                             || Set.of("listBudgets", "listWallets", "listCategories",
-                                    "listTransactions", "listRecurring", "openTransactionForm")
+                                    "listTransactions", "listRecurring", "openTransactionForm",
+                                    "getCurrentAccount")
                                     .contains(toolName));
             assertThat(annotations.path("openWorldHint").isBoolean())
                     .as("openWorldHint annotation: %s", tool).isTrue();
@@ -158,7 +161,7 @@ class McpTransportUiMetadataIntegrationTest extends AbstractToolIntegrationTest 
                 .as("Tool names in MCP tools/list JSON: %s", toolsResponse)
                 .containsAll(UI_TOOL_NAMES)
                 .containsAll(TEXT_ONLY_TOOL_NAMES);
-        assertThat(annotatedTools).hasSize(10);
+        assertThat(annotatedTools).hasSize(11);
         for (JsonNode tool : tools) {
             String toolName = tool.path("name").asStringOpt().orElse(null);
             if (toolName != null && !UI_TOOL_NAMES.contains(toolName)) {

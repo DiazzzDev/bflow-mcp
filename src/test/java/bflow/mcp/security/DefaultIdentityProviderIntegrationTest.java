@@ -40,7 +40,7 @@ class DefaultIdentityProviderIntegrationTest extends AbstractToolIntegrationTest
         var query = queryParams(redirect);
         assertThat(query.get("identity_provider")).containsExactly("Google");
         assertThat(query.getFirst("redirect_uri"))
-                .isEqualTo("http://localhost:8081/oauth/callback");
+                .isEqualTo("http%3A%2F%2Flocalhost%3A8081%2Foauth%2Fcallback");
         assertThat(query.getFirst("state")).isNotEqualTo("callers-original-state");
     }
 
