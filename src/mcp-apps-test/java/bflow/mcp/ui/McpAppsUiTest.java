@@ -94,7 +94,8 @@ class McpAppsUiTest {
                     "No hay presupuestos para mostrar.", "Reintentar"),
                     "data", Map.of("content", List.of(Map.of("period", "MONTHLY",
                             "currency", "USD", "spent", 25.5, "remaining", 74.5,
-                            "budgetLimit", 100, "percentage", 25.5)))));
+                            "budgetLimit", 100, "percentage", 25.5,
+                            "progressAvailable", true)))));
             assertThat(app.locator("body").innerText()).contains("Presupuestos")
                     .contains("25,50");
             assertThat(app.locator("progress").count()).isEqualTo(1);
