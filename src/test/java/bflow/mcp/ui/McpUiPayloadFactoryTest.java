@@ -39,7 +39,8 @@ class McpUiPayloadFactoryTest {
                 "ui.budgets.daily", "ui.budgets.wallet", "ui.budgets.category",
                 "ui.budgets.healthy", "ui.budgets.warning", "ui.budgets.critical",
                 "ui.budgets.statusUnavailable", "ui.budgets.daysLeft",
-                "ui.budgets.percentUsed"}) {
+                "ui.budgets.percentUsed", "ui.budgets.count.one",
+                "ui.budgets.count.many"}) {
             when(messages.get(key)).thenReturn(key);
         }
         when(messages.get("ui.budgets.progressUnavailable"))
