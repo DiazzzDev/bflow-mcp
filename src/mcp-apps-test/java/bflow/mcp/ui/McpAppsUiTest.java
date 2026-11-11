@@ -87,7 +87,7 @@ class McpAppsUiTest {
                     .isEqualTo("Sin datos de progreso");
             assertThat(app.locator("body").innerText()).contains("Sin datos de progreso")
                     .contains("—").contains("Mensual").doesNotContain("MONTHLY");
-            assertThat(app.locator("progress").count()).isZero();
+            assertThat(app.locator("[role=progressbar]").count()).isZero();
 
             sendResult(page, Map.of("locale", "es", "labels", budgetLabels(
                     "Presupuestos", "Cargando presupuestos…",
@@ -98,7 +98,7 @@ class McpAppsUiTest {
                             "progressAvailable", true)))));
             assertThat(app.locator("body").innerText()).contains("Presupuestos")
                     .contains("25,50");
-            assertThat(app.locator("progress").count()).isEqualTo(1);
+            assertThat(app.locator("[role=progressbar]").count()).isEqualTo(1);
             assertThat(app.locator("html").getAttribute("data-theme")).isEqualTo("dark");
             assertThat(externalRequests).isEmpty();
         }
