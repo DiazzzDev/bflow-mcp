@@ -37,7 +37,8 @@ public class ListWalletsTool {
      * @return the raw JSON body returned by BFlow's API.
      */
     @McpTool(title = "List wallets",
-            description = "Find the user's wallets and their IDs when a "
+            description = "No arguments are required. Find the user's wallets and "
+                    + "their IDs when a "
                     + "wallet is needed for a transaction or budget. Treat IDs as "
                     + "internal references; never include them in a user-facing reply.",
             annotations = @McpTool.McpAnnotations(title = "List wallets",

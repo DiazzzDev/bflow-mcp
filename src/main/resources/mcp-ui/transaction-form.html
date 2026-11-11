@@ -4,40 +4,43 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    :root{color-scheme:light dark;--bg:#fff;--fg:#172033;--card:#f5f7fb;--line:#c8d0dc;--accent:#075fc4;--muted:#526176;--danger:#b42318}
-    @media(prefers-color-scheme:dark){:root{--bg:#101722;--fg:#edf2fa;--card:#1c2736;--line:#3a4a5d;--accent:#8dc2ff;--muted:#aab7c8;--danger:#ffb4ab}}
-    :root[data-theme="dark"]{color-scheme:dark;--bg:#101722;--fg:#edf2fa;--card:#1c2736;--line:#3a4a5d;--accent:#8dc2ff;--muted:#aab7c8;--danger:#ffb4ab}
+    :root{color-scheme:light dark;--bg:#fff;--fg:#172033;--card:#f5f7fb;--line:#c8d0dc;--accent:#075fc4;--muted:#526176;--danger:#b42318;--focus:#cfe4ff}
+    @media(prefers-color-scheme:dark){:root{--bg:#101722;--fg:#edf2fa;--card:#1c2736;--line:#3a4a5d;--accent:#8dc2ff;--muted:#aab7c8;--danger:#ffb4ab;--focus:#243b55}}
+    :root[data-theme="dark"]{color-scheme:dark;--bg:#101722;--fg:#edf2fa;--card:#1c2736;--line:#3a4a5d;--accent:#8dc2ff;--muted:#aab7c8;--danger:#ffb4ab;--focus:#243b55}
     :root[data-theme="light"]{color-scheme:light}
-    body{margin:0;background:var(--bg);color:var(--fg);font:16px system-ui,sans-serif}
-    main{display:grid;gap:.85rem;padding:1rem}label{display:grid;gap:.35rem}
-    input,select,textarea{font:inherit;padding:.5rem;border:1px solid var(--line);border-radius:.35rem;background:var(--bg);color:var(--fg)}
-    button{padding:.55rem .75rem;border:1px solid var(--accent);border-radius:.35rem;background:var(--accent);color:Canvas;justify-self:start}
-    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-    textarea{resize:none}.error{color:var(--danger)}.optional,.hint{color:var(--muted);font-size:.875rem}
-    .type-toggle,.date-presets{display:grid;gap:.5rem}.type-toggle{grid-template-columns:1fr 1fr}
-    .type-toggle button{width:100%;background:transparent;color:var(--fg)}
-    .type-toggle button[aria-pressed="true"]{background:var(--accent);color:Canvas}
-    .date-presets{grid-template-columns:repeat(2,max-content)}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}
+    main{display:grid;gap:1rem;padding:clamp(14px,3vw,24px);max-width:760px;margin:auto}.form-heading{display:grid;gap:.25rem}h1{font-size:clamp(1.35rem,4vw,1.8rem);margin:0}#subtitle{margin:0;color:var(--muted);font-size:.92rem}#status{margin:0;color:var(--muted);font-size:.9rem}
+    #form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem}label{display:grid;gap:.38rem;min-width:0;font-weight:600}.field-wide,.type-toggle,.optional-fields,.form-actions{grid-column:1/-1}.field-label{display:flex;flex-wrap:wrap;align-items:baseline;gap:.35rem}
+    input,select,textarea{width:100%;min-width:0;font:inherit;padding:.72rem .8rem;border:1px solid var(--line);border-radius:.7rem;background:var(--bg);color:var(--fg)}input,select{min-height:46px}input::placeholder,textarea::placeholder{color:var(--muted);opacity:.8}
+    button{min-height:42px;padding:.6rem .9rem;border:1px solid var(--line);border-radius:.7rem;background:var(--card);color:var(--fg);font:inherit;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+    button:hover:not(:disabled){border-color:var(--accent);background:var(--focus)}button:active:not(:disabled){transform:translateY(1px)}button:disabled{opacity:.55;cursor:not-allowed}
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+    textarea{resize:vertical;min-height:90px}.error{color:var(--danger);font-size:.875rem}.optional,.hint{color:var(--muted);font-size:.85rem;font-weight:400}
+    .type-toggle{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;padding:.3rem;border:1px solid var(--line);border-radius:.85rem;background:var(--card)}
+    .type-toggle button{border-color:transparent;background:transparent}.type-toggle button[aria-pressed="true"]{background:var(--accent);color:Canvas;border-color:var(--accent);box-shadow:0 2px 8px #0002}
+    .date-presets{display:flex;gap:.45rem}.date-presets button{min-height:34px;padding:.35rem .65rem;font-size:.88rem}
+    .optional-fields{border:1px solid var(--line);border-radius:.75rem;padding:.1rem .8rem}.optional-fields summary{padding:.65rem 0;cursor:pointer;font-weight:600}.optional-fields textarea{margin:0 0 .8rem}
+    .form-actions{position:sticky;bottom:0;padding:.55rem 0 max(.15rem,env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%)}#submit{width:100%;min-height:48px;background:var(--accent);border-color:var(--accent);color:Canvas;font-weight:700;font-size:1rem}
+    @media(max-width:520px){#form{grid-template-columns:1fr}.field-wide,.type-toggle,.optional-fields,.form-actions{grid-column:auto}.form-actions{bottom:0}}
   </style>
 </head>
 <body>
   <main aria-live="polite" aria-busy="true">
-    <h1 id="title"></h1>
+    <header class="form-heading"><h1 id="title"></h1><p id="subtitle"></p></header>
     <p id="status"></p>
     <form id="form">
       <div id="type-toggle" class="type-toggle" role="group">
         <button id="income" type="button" aria-pressed="false"></button>
         <button id="expense" type="button" aria-pressed="true"></button>
       </div>
-      <label><span id="name-label"></span><input id="name" required maxlength="50"></label>
-      <label><span id="amount-label"></span><input id="amount" type="number" min="0.01" step="0.01" required></label>
-      <label><span id="date-label"></span><input id="date" type="date" required><span id="date-hint" class="hint"></span>
-        <span class="date-presets"><button id="today" type="button"></button><button id="yesterday" type="button"></button></span>
+      <label class="field-wide"><span id="name-label"></span><input id="name" required maxlength="50" autocomplete="off"></label>
+      <label><span id="amount-label"></span><input id="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
+      <label><span id="date-label"></span><input id="date" type="date" required><span class="date-presets"><button id="today" type="button"></button><button id="yesterday" type="button"></button></span>
       </label>
       <label><span id="wallet-label"></span><select id="wallet" required></select><span id="wallet-error" class="error" role="status"></span></label>
-      <label><span><span id="category-label"></span> <span id="category-optional" class="optional"></span></span><select id="category"></select><span id="category-hint" class="hint"></span><span id="category-error" class="error" role="status"></span></label>
-      <label><span><span id="description-label"></span> <span id="description-optional" class="optional"></span></span><textarea id="description" maxlength="100"></textarea></label>
-      <button id="submit" type="submit" disabled></button>
+      <label><span class="field-label"><span id="category-label"></span><span id="category-optional" class="optional"></span></span><select id="category"></select><span id="category-hint" class="hint"></span><span id="category-error" class="error" role="status"></span></label>
+      <details class="optional-fields"><summary><span id="description-label"></span> <span id="description-optional" class="optional"></span></summary><textarea id="description" maxlength="100" aria-labelledby="description-label"></textarea></details>
+      <div class="form-actions"><button id="submit" type="submit" disabled></button></div>
     </form>
   </main>
   <script>
@@ -197,6 +200,9 @@
         type = value;
         document.querySelector('#income').setAttribute('aria-pressed', String(value === 'INCOME'));
         document.querySelector('#expense').setAttribute('aria-pressed', String(value === 'EXPENSE'));
+        submit.textContent = value === 'INCOME'
+          ? labels.saveIncome || labels.submit || ''
+          : labels.saveExpense || labels.submit || '';
         if (categoriesLoaded) renderCategoriesForType();
       };
 
@@ -222,6 +228,7 @@
         locale = payload.locale || locale;
         root.lang = locale;
         document.querySelector('#title').textContent = labels.title || '';
+        document.querySelector('#subtitle').textContent = labels.subtitle || '';
         document.querySelector('#type-toggle').setAttribute('aria-label', labels.typeAccessible || '');
         ['name', 'amount', 'date', 'wallet', 'category', 'description'].forEach((key) => {
           document.querySelector('#' + key + '-label').textContent = labels[key] || '';
@@ -232,7 +239,6 @@
         document.querySelector('#name').placeholder = labels.namePlaceholder || '';
         document.querySelector('#amount').placeholder = labels.amountPlaceholder || '';
         document.querySelector('#description').placeholder = labels.descriptionPlaceholder || '';
-        document.querySelector('#date-hint').textContent = labels.dateExample || '';
         submit.textContent = labels.submit || '';
         status.textContent = labels.loading || '';
         document.querySelector('#income').textContent = labels.income || '';
