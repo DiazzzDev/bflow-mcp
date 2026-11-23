@@ -32,9 +32,10 @@ public class ListTransactionsTool {
      * @return the raw JSON body returned by BFlow's API.
      */
     @McpTool(title = "List transactions",
-            description = "Show the user's expenses, income and transfers "
-                    + "across all wallets to answer questions about activity. "
-                    + "Summarize naturally; never show IDs, API wrappers, or raw field names.",
+            description = "No requiere parámetros: ejecútala con {} sin pedir datos "
+                    + "al usuario. Muestra los gastos, ingresos y transferencias "
+                    + "de todas sus billeteras. Resume en lenguaje cotidiano y no "
+                    + "muestres IDs, respuestas de API ni nombres de campos internos.",
             annotations = @McpTool.McpAnnotations(title = "List transactions",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false))

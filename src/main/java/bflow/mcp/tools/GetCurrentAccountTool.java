@@ -26,8 +26,9 @@ public class GetCurrentAccountTool {
     }
 
     @McpTool(title = "Get connected BFlow account",
-            description = "Identify the BFlow account currently connected to this session. "
-                    + "Use when the user asks which account or email is connected.",
+            description = "No requiere parámetros: ejecútala con {} sin pedir datos "
+                    + "al usuario. Identifica la cuenta de BFlow conectada a esta "
+                    + "sesión cuando pregunte qué cuenta o correo está usando.",
             annotations = @McpTool.McpAnnotations(title = "Get connected BFlow account",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false))

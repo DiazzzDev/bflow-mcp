@@ -45,11 +45,10 @@ public class ListBudgetsTool {
      * @return a user-friendly summary, with detailed app-only data in MCP metadata.
      */
     @McpTool(title = "List budgets",
-            description = "No arguments are required. Show the user's budgets across "
-                    + "every wallet. Use "
-                    + "this to answer questions about budget limits and current progress. "
-                    + "Present periods in the user's language. The result uses everyday "
-                    + "language and does not expose internal IDs.",
+            description = "No requiere parámetros: ejecútala con {} sin pedir datos "
+                    + "al usuario. Muestra sus presupuestos de todas las billeteras "
+                    + "para responder sobre límites y progreso actual. Presenta los "
+                    + "períodos en el idioma del usuario y no expongas IDs internos.",
             annotations = @McpTool.McpAnnotations(title = "List budgets",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false),

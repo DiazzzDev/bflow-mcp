@@ -29,9 +29,10 @@ public class ListRecurringTool {
      * @return the raw JSON body returned by BFlow's API.
      */
     @McpTool(title = "List recurring transactions",
-            description = "Show the user's scheduled recurring expenses and "
-                    + "income to answer questions about upcoming activity. Keep IDs and "
-                    + "raw field names internal; explain schedules in everyday language.",
+            description = "No requiere parámetros: ejecútala con {} sin pedir datos "
+                    + "al usuario. Muestra sus gastos e ingresos programados para "
+                    + "responder sobre actividad futura. Mantén IDs y nombres de campos "
+                    + "internos; explica las frecuencias en lenguaje cotidiano.",
             annotations = @McpTool.McpAnnotations(title = "List recurring transactions",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false))
