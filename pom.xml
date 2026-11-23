@@ -27,7 +27,7 @@
 		<spring-ai.version>2.0.2</spring-ai.version>
 		<maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
 		<jacoco.version>0.8.16</jacoco.version>
-		<playwright.version>1.64.0</playwright.version>
+		<playwright.version>1.65.0</playwright.version>
 		<!-- Jackson 2.x (com.fasterxml.jackson.core): CVE-2026-89407/89425/68497/91776/91777.
      	Fixed en 2.21.7. -->
 		<jackson-2-bom.version>2.21.7</jackson-2-bom.version>
