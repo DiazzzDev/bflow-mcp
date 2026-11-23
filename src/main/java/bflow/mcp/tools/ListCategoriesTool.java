@@ -39,10 +39,10 @@ public class ListCategoriesTool {
      * @return the raw JSON body returned by BFlow's API.
      */
     @McpTool(title = "List categories",
-            description = "No arguments are required. Find the user's transaction "
-                    + "categories, types "
-                    + "and IDs. Use a category ID when creating a transaction, but "
-                    + "never include IDs or raw field names in a user-facing reply.",
+            description = "No requiere parámetros: ejecútala con {} sin pedir datos "
+                    + "al usuario. Consulta sus categorías y tipos para elegir una "
+                    + "al crear un movimiento o presupuesto. Mantén IDs y nombres "
+                    + "de campos internos fuera de la respuesta al usuario.",
             annotations = @McpTool.McpAnnotations(title = "List categories",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false))

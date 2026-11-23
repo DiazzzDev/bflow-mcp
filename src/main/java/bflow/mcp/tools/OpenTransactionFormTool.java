@@ -28,9 +28,10 @@ public class OpenTransactionFormTool {
      * @return localized JSON fallback and MCP App payload.
      */
     @McpTool(title = "Open transaction form",
-            description = "No arguments are required. Open a form to enter "
-                    + "an expense or income and "
-                    + "choose its wallet. Category and description are optional.",
+            description = "No requiere parámetros: ejecútala con {} sin pedir datos "
+                    + "al usuario. Abre un formulario para ingresar un gasto o "
+                    + "ingreso y elegir la billetera. La categoría y la descripción "
+                    + "son opcionales.",
             annotations = @McpTool.McpAnnotations(title = "Open transaction form",
                     readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false),
